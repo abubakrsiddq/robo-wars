@@ -174,16 +174,47 @@ const CONFIG = {
   // ---- AI OPPONENTS: one per Claude model; the model choice = difficulty -------------
   // label/tier/desc/color/build are read by the builder; the rest tunes the AI brain.
   ai: {
+    // Brain tuning (all AI): reaction = perception lag (s); decisionInterval = re-plan period (s);
+    // predict = 0..1 how far it extrapolates your motion over its lag; aimError = px noise on range reads;
+    // fireSlop = px it will swing early (whiffs); randomFire/mistakeRate/dashRate/hopRate = chance per second;
+    // defendRate = chance to block/dodge a telegraphed attack; dodgeBias = dodge vs block preference;
+    // pitMargin = px it keeps from a pit; aggression = 0..1 engage when ready; punish = 0..1 attack your cooldowns;
+    // readsBlock = waits out your block; retreatBelow = HP% to back off; spacing = px kept outside your reach;
+    // spacingGain = px per full drive (lower = tighter footsies); wobble = random drive jitter; pitPushRoom = px.
     haiku:  { label: 'Claude Haiku',  tier: 'Easy',   color: '#4ade80', desc: 'Quick but sloppy. Swings wildly, rarely dodges.',
-              build: { chassis: 'light',  wheels: 'small', weapon: 'ram',     armour: 0 } },
+              build: { chassis: 'light',  wheels: 'small', weapon: 'ram',     armour: 0 },
+              reaction: 0.45, decisionInterval: 0.3, predict: 0, aimError: 45, fireSlop: 80, randomFire: 0.35,
+              mistakeRate: 0.2, defendRate: 0.1, dodgeBias: 0.5, dashRate: 0.12, hopRate: 0.15, pitMargin: 25,
+              aggression: 1, punish: 0, readsBlock: false, retreatBelow: 0, spacing: 0, spacingGain: 70, wobble: 0.45,
+              pitPush: false, pitPushRoom: 0 },
     sonnet: { label: 'Claude Sonnet', tier: 'Medium', color: '#fbbf24', desc: 'Solid fighter. Times attacks, backs off when hurt.',
-              build: { chassis: 'medium', wheels: 'large', weapon: 'hammer',  armour: 1 } },
+              build: { chassis: 'medium', wheels: 'large', weapon: 'hammer',  armour: 1 },
+              reaction: 0.25, decisionInterval: 0.14, predict: 0.5, aimError: 14, fireSlop: 0, randomFire: 0,
+              mistakeRate: 0.05, defendRate: 0.45, dodgeBias: 0.35, dashRate: 0.6, hopRate: 0.03, pitMargin: 120,
+              aggression: 0.7, punish: 0.35, readsBlock: false, retreatBelow: 0.3, spacing: 25, spacingGain: 60, wobble: 0.1,
+              pitPush: false, pitPushRoom: 0 },
     opus:   { label: 'Claude Opus',   tier: 'Hard',   color: '#c084fc', desc: 'Reads you. Punishes cooldowns and corners you at the pit.',
-              build: { chassis: 'medium', wheels: 'large', weapon: 'flipper', armour: 1 } },
+              build: { chassis: 'medium', wheels: 'large', weapon: 'flipper', armour: 1 },
+              reaction: 0.1, decisionInterval: 0.05, predict: 0.9, aimError: 4, fireSlop: 0, randomFire: 0,
+              mistakeRate: 0.02, defendRate: 0.72, dodgeBias: 0.45, dashRate: 3, hopRate: 0, pitMargin: 140,
+              aggression: 0.3, punish: 0.9, readsBlock: true, retreatBelow: 0, spacing: 18, spacingGain: 35, wobble: 0,
+              pitPush: true, pitPushRoom: 230 },
   },
 
   // ---- PLAYER CONTROLS: arrows move, WASD = moves -------------------------------------
+  // Same rules for the human and the AI. Times in seconds, speeds in px/step (60 Hz).
   controls: {
+    overdrive: 1,                  // builder-made bots (human + AI) ignore the budget, so no overdrive bonus
+    bufferSeconds: 0.15,           // a move pressed this long before it is ready still fires
+    keys: { left: ['ArrowLeft'], right: ['ArrowRight'], hop: ['ArrowUp'], brake: ['ArrowDown'],
+            attack: ['KeyW'], dodge: ['KeyA'], block: ['KeyS'], dash: ['KeyD'] },
+    hop:    { velocity: 4.6, cooldown: 0.8, groundTol: 4 },          // ~38 px: too low to leapfrog
+    brake:  { factor: 0.55 },                                         // wheel spin kept per tick while braking
+    attack: { revCooldown: 2.4, revTime: 0.7, revDamageMul: 1.4 },     // spinner W = rev burst
+    dodge:  { cooldown: 1.6, time: 0.32, speed: 8, lift: 1.5, reduction: 0.6, spinMul: 1.6, safeRoom: 130 },
+    block:  { maxHold: 1.6, cooldown: 2.2, releaseCooldown: 0.35, regenSeconds: 1.8, minStamina: 0.25,
+              reduction: 0.65, driveMul: 0.35, launchMul: 0.3, knockMul: 0.4, downforce: 0.3, spinDamp: 0.8 },
+    dash:   { cooldown: 2.2, time: 0.35, speed: 9, spinMul: 1.8, damage: 7, speedMul: 0.8, knock: 3, reach: 170 },
   },
 
   // ---- SIMPLE BUILDER: Body / Attack / Defence cards -----------------------------------
@@ -377,6 +408,144 @@ const FALLBACK = {
   },
 };
 
+// ---- AI BRAINS: one behaviour profile per Claude model (tuned in CONFIG.ai[model]) ----------
+// decide(state) returns the extended action { drive (screen dir -1..1), jump, attack, dodge, block, dash, brake, mode }.
+// The brain sees the enemy through a reaction-delay buffer and re-plans every decisionInterval. It uses
+// the exact same action interface (and therefore the same cooldowns and physics) as the keyboard player.
+function aiBehaviour(modelKey) {
+  const P = CONFIG.ai[modelKey] || CONFIG.ai.sonnet, C = CONFIG.controls;
+  const hist = [];
+  const mem = { next: -1, plan: null, mistakeT: 0, mistakeDrive: 0, threat: false, defend: null,
+                aggroRoll: Math.random(), aggroNext: 0, punishing: false, phase: Math.random() * 6 };
+  const perSec = (rate, dt) => 1 - Math.exp(-rate * dt);   // chance per decision from a rate per second
+
+  // Enemy seen `reaction` seconds late, optionally extrapolated forward by its velocity (`predict`)
+  function perceive(s) {
+    hist.push(s);
+    const lag = Math.max(1, Math.round(P.reaction * 60));
+    while (hist.length > lag + 1) hist.shift();
+    const en = hist[0].enemy, ahead = (hist.length - 1) * P.predict;
+    const ex = en.x + en.vx * ahead, dx = ex - s.me.x, dir = Math.sign(dx) || s.me.facing;
+    return { ...s, enemy: { ...en, x: ex }, dx, distance: Math.abs(dx), enemyInFront: dx * s.me.facing > 0,
+             meInEnemyFront: -dx * en.facing > 0, closing: -(en.vx - s.me.vx) * dir, isEnemyFlipped: en.flipped };
+  }
+
+  function think(s, dt) {
+    const me = s.me, en = s.enemy, A = s.arena, W = me.weapon;
+    const out = { drive: 0, jump: false, attack: false, dodge: false, block: false, dash: false, brake: false, mode: '' };
+    const toward = Math.sign(s.dx) || me.facing;
+    const dist = s.distance + (Math.random() * 2 - 1) * P.aimError;
+    const myRange = s.weaponRange, enRange = s.enemyRange;
+    const ready = me.moves.attack <= 0, enCd = en.moves.attack;
+    const enDanger = !en.flipped && (en.weapon === 'spinner' ? en.spinFrac > 0.4 : enCd <= 0.15);
+    const roomBack = toward > 0 ? me.x - A.left : A.right - me.x;      // floor behind me (away from enemy)
+    const enRoomBack = toward > 0 ? A.right - en.x : en.x - A.left;    // floor behind the enemy
+    const impatient = s.stallTime > CONFIG.stallSeconds;
+    const lead = W === 'hammer' ? 10 * P.predict : 2 * P.predict;       // hammer lands ~10 steps after the swing
+    const futureDist = dist - Math.max(-3, s.closing) * lead;
+    const inRange = s.enemyInFront && futureDist < myRange;
+
+    if (me.flipped) { out.attack = ready; out.drive = 0; out.mode = 'RECOVER'; return out; }
+
+    // ---- defence: roll once per threat (a telegraphed attack), not every tick
+    const threat = s.meInEnemyFront && !en.flipped &&
+      (en.attacking || (enDanger && dist < enRange + Math.max(0, s.closing) * 12 + 10));
+    if (threat && !mem.threat) {
+      mem.defend = null;
+      if (Math.random() < P.defendRate) {
+        const dodgeSafe = P.pitMargin < 60 || roomBack > C.dodge.safeRoom + P.pitMargin * 0.3;
+        if (me.moves.dodge <= 0 && dodgeSafe && Math.random() < P.dodgeBias) mem.defend = 'dodge';
+        else if (me.moves.block <= 0 && me.blockHold < 1 - C.block.minStamina) mem.defend = 'block';
+      }
+    }
+    mem.threat = threat;
+    if (!threat) mem.defend = null;
+
+    // ---- intent
+    if (s.time >= mem.aggroNext) { mem.aggroRoll = Math.random(); mem.aggroNext = s.time + rand(0.6, 1.1); }
+    const punishWin = !enDanger && !en.blocking && enCd > 0.35;
+    if (!punishWin) mem.punishing = false;
+    else if (!mem.punishing && P.punish > 0 && Math.random() < perSec(P.punish * 6, dt)) mem.punishing = true;
+    const outranging = myRange > enRange + 8;
+    let mode;
+    if (en.flipped) mode = 'EXECUTE';
+    else if (P.retreatBelow && me.hpPct < P.retreatBelow && me.hpPct < en.hpPct && !impatient) mode = 'RETREAT';
+    else if (mem.punishing && ready) mode = 'PUNISH';
+    else if (P.readsBlock && en.blocking) mode = 'BAIT';
+    else if (P.pitPush && enRoomBack < P.pitPushRoom && dist < 260) mode = 'RING-OUT';
+    else if (ready && (mem.aggroRoll < P.aggression || impatient)) mode = 'PRESSURE';
+    else mode = outranging && ready ? 'POKE' : 'SPACING';
+
+    // ---- movement: drive toward a target distance
+    const attackDist = W === 'spinner' || W === 'ram' ? 0 : myRange * 0.7;
+    let target;
+    switch (mode) {
+      case 'EXECUTE': case 'PUNISH': case 'PRESSURE': case 'RING-OUT': target = attackDist; break;
+      case 'RETREAT': target = 320; break;
+      case 'POKE': target = myRange - 8; break;
+      default: target = Math.max(enRange + P.spacing, W === 'ram' ? 200 : 0) + (mode === 'BAIT' ? 20 * Math.sin(s.time * 4 + mem.phase) : 0);
+    }
+    if (W === 'ram' && !ready && mode !== 'EXECUTE' && mode !== 'RING-OUT') { target = 210; mode = 'RELOAD'; }
+    out.drive = toward * clamp((dist - target) / P.spacingGain, -1, 1);
+    if (P.wobble) out.drive = clamp(out.drive + P.wobble * Math.sin(s.time * 3.1 + mem.phase), -1, 1);
+    if (mode === 'RING-OUT' && dist < myRange + 40) out.drive = toward;
+
+    // ---- mistakes (mostly Haiku): wander off for a moment
+    if (mem.mistakeT > 0) { mem.mistakeT -= dt; out.drive = mem.mistakeDrive; mode = 'OOPS'; }
+    else if (Math.random() < perSec(P.mistakeRate, dt)) { mem.mistakeT = rand(0.3, 0.9); mem.mistakeDrive = pick([-1, -0.6, 0, 0.6, 1]); }
+
+    // ---- defence actions
+    if (mem.defend === 'dodge' && me.moves.dodge <= 0) { out.dodge = true; mem.defend = 'done'; mode = 'DODGE'; }
+    else if (mem.defend === 'block' && me.blockHold < 0.92) { out.block = true; out.drive *= 0.3; mode = 'BLOCK'; }
+
+    // ---- attacks
+    const engaged = mode !== 'SPACING' && mode !== 'RETREAT' && mode !== 'RELOAD' && mode !== 'BAIT';
+    if (ready && !out.block && !out.dodge) {
+      const intoBlock = P.readsBlock && en.blocking && !(W === 'hammer' && en.flipped);
+      if (W === 'ram') {
+        out.attack = engaged && s.enemyInFront && dist > myRange + 10 && dist < 320 && !intoBlock;
+      } else if (W === 'spinner') {
+        out.attack = (engaged || dist < myRange) && me.spinFrac < 0.7 && dist < myRange + 70;
+      } else {
+        out.attack = !intoBlock && s.enemyInFront && futureDist < myRange + P.fireSlop * Math.random() &&
+                     (inRange || P.fireSlop > 0);
+      }
+      if (!out.attack && Math.random() < perSec(P.randomFire, dt)) out.attack = true;
+    }
+
+    // ---- dash: Opus only commits to punish / ring-out / execute; others dash when engaging
+    if (me.moves.dash <= 0 && !out.block && !out.dodge && s.enemyInFront && dist > myRange * 0.8 && dist < myRange + C.dash.reach) {
+      const smart = P.readsBlock ? (mode === 'PUNISH' || mode === 'RING-OUT' || mode === 'EXECUTE') && !en.blocking : engaged;
+      if ((smart || P.aggression >= 1) && Math.random() < perSec(P.dashRate, dt)) { out.dash = true; mode = 'DASH'; }
+    }
+    if (me.grounded && Math.random() < perSec(P.hopRate, dt)) out.jump = true;
+
+    // ---- pit awareness: never drive (or dodge) toward a nearby edge unless shoving the enemy over it
+    const worldDir = Math.sign(out.drive);
+    const room = worldDir > 0 ? A.right - me.x : me.x - A.left;
+    const shoving = worldDir === toward && dist < myRange + 30;
+    if (worldDir && room < P.pitMargin && !(shoving && room > 30)) { out.drive = -worldDir * 0.5; mode = 'EDGE'; }
+    if (out.dodge && P.pitMargin >= 60 && roomBack < C.dodge.safeRoom) { out.dodge = false; }
+
+    out.mode = mode;
+    return out;
+  }
+
+  function decide(s) {
+    const ps = perceive(s);
+    if (mem.plan && s.time < mem.next) {   // between decisions: keep driving/holding, no new one-shot moves
+      const p = mem.plan;
+      return { drive: p.drive, block: p.block, brake: p.brake, jump: false, attack: false, dodge: false, dash: false, mode: p.mode };
+    }
+    const dt = P.decisionInterval * rand(0.8, 1.2);
+    mem.next = s.time + dt;
+    mem.plan = think(ps, dt);
+    return mem.plan;
+  }
+
+  return { params: P, model: modelKey, decide };
+}
+
 // ============================================================
 // BUILDER UI
 // ============================================================
@@ -538,13 +707,28 @@ function createRobot(player, x) {
     cons.push(Constraint.create({ bodyA: body, pointA: rel({ x: x + g.spinner.x, y: y + g.spinner.y }), bodyB: spinner, length: 0, stiffness: 1 }));
   }
 
+  // #auto runs everyone as a strategy bot (balance harness); #auto..ai runs everyone as an AI
+  const controller = AUTO_AI ? 'ai' : AUTO ? 'strategy' : (player.controller || 'strategy');
+  const model = controller === 'ai' ? (CONFIG.ai[player.model] ? player.model : 'sonnet') : null;
+  const C = CONFIG.controls;
   const robot = {
     player, name: player.name, color: player.color, build: b, g, f, body, wheels, spinner, cons,
     rectOffset: rel(rect.position), all: [body, ...wheels, ...(spinner ? [spinner] : [])],
-    maxHp: ch.hp, hp: ch.hp, ghost: ch.hp, overdrive: PARTS.overdrive(b),
+    maxHp: ch.hp, hp: ch.hp, ghost: ch.hp,
+    overdrive: controller === 'strategy' ? PARTS.overdrive(b) : C.overdrive,
     cooldown: 0.5, spin: 0, hammerT: -1, flipT: -1, boostT: 0, flipped: false, flippedTime: 0,
     rage: false, lastSpinHit: -9, lastLand: -9, lastBump: -9, lastHitBy: null, lastHitAt: -9,
-    mode: '', warned: false, behaviour: strategyToBehaviour(player.strategy),
+    mode: '', warned: false, controller, model,
+    behaviour: controller === 'ai' ? aiBehaviour(model) : controller === 'strategy' ? strategyToBehaviour(player.strategy) : null,
+    // action-system runtime (read by the HUD): cd = seconds left (0 = ready), max = full cooldown
+    blocking: false, blockHold: 0, dashT: 0, dodgeT: 0, revT: 0, hopCd: 0, dashDir: 0, dodgeDir: 0, dashHit: false,
+    lastBlockText: -9,
+    moves: {
+      attack: { cd: 0.5, max: b.weapon === 'spinner' ? C.attack.revCooldown : (wp.cooldown || 0.5), key: 'W' },
+      dodge:  { cd: 0, max: C.dodge.cooldown, key: 'A' },
+      block:  { cd: 0, max: C.block.cooldown, key: 'S' },
+      dash:   { cd: 0, max: C.dash.cooldown, key: 'D' },
+    },
     stats: { dealt: 0, biggest: 0, hits: 0 },
   };
   robot.totalMass = robot.all.reduce((s, bd) => s + bd.mass, 0);
@@ -579,10 +763,26 @@ function flipAngle(t) {
 // ============================================================
 let fight = null, rafId = null;
 const AUTO = location.hash.includes('auto');
+const AUTO_AI = /^#auto\d*ai/.test(location.hash);   // #auto30ai: AI vs AI; #auto30aisame: same random build for both
 const STEP = 1 / 60;
+let autoAiK = 0;
+
+// AI-vs-AI harness: cycle through every ordered pair of different models so each side plays each matchup
+function setupAutoAI() {
+  const keys = Object.keys(CONFIG.ai), pairs = [];
+  keys.forEach(a => keys.forEach(b => a !== b && pairs.push([a, b])));
+  const pr = pairs[autoAiK++ % pairs.length];
+  const same = location.hash.includes('aisame') ? PARTS.randomBuild() : null;
+  players.forEach((p, i) => {
+    p.controller = 'ai'; p.model = pr[i];
+    p.build = { ...(same || CONFIG.ai[p.model].build) };
+    p.name = CONFIG.ai[p.model].label;
+  });
+}
 
 function startFight() {
   teardown();
+  if (AUTO_AI) setupAutoAI();
   const A = CONFIG.arena;
   const engine = Engine.create();
   engine.gravity.y = 1;
@@ -657,6 +857,7 @@ function step(dt) {
     F.introT -= dt;
     if (F.introT <= 0) { F.phase = 'fight'; setBanner('FIGHT!', '#ffd23f', 0.9); }
   }
+  for (const k in INPUT.buffer) INPUT.buffer[k] -= dt;
   F.robots.forEach((r, i) => controlRobot(r, F.robots[1 - i], gdt));
   Engine.update(F.engine, 1000 / 60);
 
@@ -672,22 +873,128 @@ function step(dt) {
   updateEffects(gdt, dt);
 }
 
+function isGrounded(r) {
+  if (r.flipped) return false;
+  const A = CONFIG.arena, tol = CONFIG.controls.hop.groundTol;
+  return r.wheels.some(w => w.position.y + r.g.r >= A.floorY - tol && w.position.y + r.g.r <= A.floorY + tol &&
+                            w.position.x > fight.floorL - r.g.r && w.position.x < fight.floorR + r.g.r);
+}
+
 function buildState(r, en) {
   const snap = x => ({
     x: x.body.position.x, y: x.body.position.y, vx: x.body.velocity.x, vy: x.body.velocity.y, angle: x.body.angle,
     health: x.hp, maxHealth: x.maxHp, hpPct: x.hp / x.maxHp, facing: x.f, flipped: x.flipped, rage: x.rage, weapon: x.build.weapon,
+    grounded: isGrounded(x), blocking: x.blocking, blockHold: x.blockHold, dashT: x.dashT, dodgeT: x.dodgeT,
+    spinFrac: x.spinner ? x.spin / CONFIG.weapons.spinner.spinMax : 0,
+    attacking: (x.hammerT >= 0 && x.hammerT < 0.16) || x.boostT > 0 || x.dashT > 0 || x.revT > 0,
+    moves: { attack: x.moves.attack.cd, dodge: x.moves.dodge.cd, block: x.moves.block.cd, dash: x.moves.dash.cd },
   });
   const me = snap(r), enemy = snap(en), dx = enemy.x - me.x;
   return {
     me, enemy, dx, distance: Math.abs(dx), enemyInFront: dx * r.f > 0, isEnemyFlipped: en.flipped,
     weaponReady: r.cooldown <= 0, weaponRange: r.g.w / 2 + CONFIG.weapons[r.build.weapon].reach + en.g.w / 2,
+    enemyRange: en.g.w / 2 + CONFIG.weapons[en.build.weapon].reach + r.g.w / 2,
+    meInEnemyFront: -dx * en.f > 0, closing: -(enemy.vx - me.vx) * (Math.sign(dx) || 1),
     time: fight.clock, stallTime: fight.stall, arena: { left: fight.floorL, right: fight.floorR },
   };
 }
 
+// ---- ACTIONS: every robot (human, AI, strategy) produces one action per tick; applyAction is the only
+// code path that turns actions into physics, so everyone obeys the same rules and cooldowns.
+const IDLE_ACTION = { drive: 0, jump: false, attack: false, dodge: false, block: false, dash: false, brake: false, mode: '' };
+
+function getAction(r, en) {
+  if (r.controller === 'human') return humanAction(r, en);
+  const s = buildState(r, en);
+  try {
+    const out = r.behaviour.decide(s);
+    if (!out || !isFinite(out.drive)) throw new Error('decide() returned invalid output');
+    if (r.controller === 'ai') {
+      return { drive: clamp(out.drive, -1, 1), jump: !!out.jump, attack: !!out.attack, dodge: !!out.dodge,
+               block: !!out.block, dash: !!out.dash, brake: !!out.brake, mode: String(out.mode || '') };
+    }
+    return { ...IDLE_ACTION, drive: clamp(out.drive, -1, 1) * r.f, attack: !!out.fire, mode: out.mode || '' };
+  } catch (err) {
+    if (!r.warned) { console.warn(`[${r.name}] ${r.controller} failed, using fallback:`, err.message); r.warned = true; }
+    const fb = FALLBACK.decide(s);
+    return { ...IDLE_ACTION, drive: fb.drive * r.f, attack: !!fb.fire, mode: fb.mode };
+  }
+}
+
+function humanAction(r, en) {
+  const k = inputHeld;
+  return { drive: (k('right') ? 1 : 0) - (k('left') ? 1 : 0), jump: k('hop'), brake: k('brake'),
+           attack: k('attack'), dodge: k('dodge'), block: k('block'), dash: k('dash'), mode: '' };
+}
+
+function setCd(r, move, t) { r.moves[move].cd = t; r.moves[move].max = Math.max(t, 0.01); }
+
+function tickMoves(r, gdt) {
+  const C = CONFIG.controls, m = r.moves;
+  r.dashT = Math.max(0, r.dashT - gdt);
+  r.dodgeT = Math.max(0, r.dodgeT - gdt);
+  r.revT = Math.max(0, r.revT - gdt);
+  r.hopCd = Math.max(0, r.hopCd - gdt);
+  m.dodge.cd = Math.max(0, m.dodge.cd - gdt);
+  m.block.cd = Math.max(0, m.block.cd - gdt);
+  m.dash.cd = Math.max(0, m.dash.cd - gdt);
+  m.attack.cd = r.cooldown;
+  if (r.blocking) r.blockHold = Math.min(1, r.blockHold + gdt / C.block.maxHold);
+  else r.blockHold = Math.max(0, r.blockHold - gdt / C.block.regenSeconds);
+}
+
+function applyAction(r, en, act) {
+  const F = fight, C = CONFIG.controls, b = r.build, m = r.moves;
+  const ch = CONFIG.chassis[b.chassis], wh = CONFIG.wheels[b.wheels];
+  const live = F.phase === 'fight';
+  const away = -(Math.sign(en.body.position.x - r.body.position.x) || r.f);
+
+  // Block (hold): limited stamina, then a cooldown. Can't block upside down.
+  const wantBlock = live && act.block && !r.flipped && !act.dodge && !act.dash;
+  if (r.blocking && (!wantBlock || r.blockHold >= 1)) {
+    r.blocking = false;
+    setCd(r, 'block', r.blockHold >= 1 ? C.block.cooldown : C.block.releaseCooldown);
+  } else if (!r.blocking && wantBlock && m.block.cd <= 0 && r.blockHold < 1 - C.block.minStamina) {
+    r.blocking = true;
+  }
+  if (r.blocking) {   // braced: downforce + resist rotation
+    r.all.forEach(bd => Body.setVelocity(bd, { x: bd.velocity.x, y: bd.velocity.y + C.block.downforce }));
+    Body.setAngularVelocity(r.body, r.body.angularVelocity * C.block.spinDamp);
+  }
+
+  if (live && !r.flipped) {
+    if (act.dodge && m.dodge.cd <= 0 && !r.blocking) {          // quick hop-back away from the enemy
+      r.dodgeT = C.dodge.time; r.dodgeDir = away; setCd(r, 'dodge', C.dodge.cooldown);
+      setAllVelocity(r, v => ({ x: away * C.dodge.speed, y: Math.min(v.y, -C.dodge.lift) }));
+      const c = rectCentre(r); sparks(c.x - away * r.g.w / 2, c.y + 10, 3, '#9fe8ff');
+    } else if (act.dash && m.dash.cd <= 0 && !r.blocking) {     // forward burst toward the enemy
+      r.dashT = C.dash.time; r.dashDir = -away; r.dashHit = false; setCd(r, 'dash', C.dash.cooldown);
+      setAllVelocity(r, v => ({ x: -away * Math.max(C.dash.speed, Math.abs(v.x)), y: v.y }));
+      const c = rectCentre(r); sparks(c.x + away * r.g.w / 2, c.y + 10, 4, '#ffb02e');
+    }
+    if (act.jump && r.hopCd <= 0 && !r.blocking && isGrounded(r)) {
+      r.hopCd = C.hop.cooldown;
+      setAllVelocity(r, v => ({ x: v.x, y: Math.min(v.y, -C.hop.velocity) }));
+    }
+  }
+
+  // Wheels: dodge / dash override the stick; block slows you down; brake damps the spin
+  let drive = clamp(act.drive || 0, -1, 1), spinMul = r.blocking ? C.block.driveMul : 1;
+  if (r.dodgeT > 0) { drive = r.dodgeDir; spinMul = C.dodge.spinMul; }
+  else if (r.dashT > 0) { drive = r.dashDir; spinMul = C.dash.spinMul; }
+  const maxSpin = wh.maxSpin * ch.speed * r.overdrive * (r.boostT > 0 ? CONFIG.weapons.ram.boost : 1) * spinMul;
+  const target = drive * maxSpin;
+  r.wheels.forEach(w => {
+    let av = w.angularVelocity + (target - w.angularVelocity) * wh.accel;
+    if (act.brake && r.dodgeT <= 0 && r.dashT <= 0) av *= C.brake.factor;
+    Body.setAngularVelocity(w, av);
+  });
+  if (act.attack && r.cooldown <= 0 && live && !r.blocking) fireWeapon(r, en);
+  m.attack.cd = r.cooldown;
+}
+
 function controlRobot(r, en, gdt) {
-  const F = fight, b = r.build;
-  const ch = CONFIG.chassis[b.chassis], wh = CONFIG.wheels[b.wheels], wp = CONFIG.weapons[b.weapon];
+  const F = fight, b = r.build, wp = CONFIG.weapons[b.weapon];
   r.cooldown = Math.max(0, r.cooldown - gdt);
   r.boostT = Math.max(0, r.boostT - gdt);
   r.flipped = Math.cos(r.body.angle) < -0.1;
@@ -704,23 +1011,11 @@ function controlRobot(r, en, gdt) {
     if (r.hammerT > 0.8) r.hammerT = -1;
   }
   if (r.flipT >= 0) { r.flipT += gdt; if (r.flipT > 0.5) r.flipT = -1; }
+  tickMoves(r, gdt);
 
-  let out = { drive: 0, fire: false, mode: '' };
-  if (F.phase === 'fight') {
-    const s = buildState(r, en);
-    try {
-      out = r.behaviour.decide(s);
-      if (!out || !isFinite(out.drive)) throw new Error('decide() returned invalid output');
-    } catch (err) {
-      if (!r.warned) { console.warn(`[${r.name}] strategy failed, using fallback:`, err.message); r.warned = true; }
-      out = FALLBACK.decide(s);
-    }
-  }
-  r.mode = out.mode || '';
-  const maxSpin = wh.maxSpin * ch.speed * r.overdrive * (r.boostT > 0 ? CONFIG.weapons.ram.boost : 1);
-  const target = clamp(out.drive, -1, 1) * maxSpin * r.f;
-  r.wheels.forEach(w => Body.setAngularVelocity(w, w.angularVelocity + (target - w.angularVelocity) * wh.accel));
-  if (out.fire && r.cooldown <= 0 && F.phase === 'fight') fireWeapon(r, en);
+  const act = F.phase === 'fight' ? getAction(r, en) : IDLE_ACTION;
+  r.mode = act.mode || '';
+  applyAction(r, en, act);
 }
 
 function fireWeapon(r, en) {
@@ -738,8 +1033,13 @@ function fireWeapon(r, en) {
       if (r.flipped) return;
       r.boostT = wp.boostTime; r.cooldown = wp.cooldown;
       break;
-    default: r.cooldown = 0.5;  // spinner is always on
+    default:   // spinner is always on: strategy bots just tick; human/AI get a rev burst
+      if (r.controller === 'strategy') { r.cooldown = 0.5; break; }
+      r.spin = wp.spinMax; r.revT = CONFIG.controls.attack.revTime; r.cooldown = CONFIG.controls.attack.revCooldown;
+      sparks(r.spinner.position.x, r.spinner.position.y, 5, '#9fe8ff');
+      floatText(r.spinner.position.x, r.spinner.position.y - 40, 'REV!', '#9fe8ff', 16);
   }
+  r.moves.attack.max = Math.max(r.cooldown, 0.01);
 }
 
 function setAllVelocity(r, fn) { r.all.forEach(bd => Body.setVelocity(bd, fn(bd.velocity))); }
@@ -759,8 +1059,9 @@ function flipperImpact(r, en) {
   const reach = r.g.w / 2 + wp.reach + en.g.w / 2 + 10;
   if (dx <= 0 || dx > reach || Math.abs(dy) > 80) return;
   const k = clamp(Math.sqrt(5.5 / en.totalMass), 0.6, 1.25);
-  setAllVelocity(en, v => ({ x: r.f * wp.push, y: -wp.launch * k }));
-  Body.setAngularVelocity(en.body, r.f * wp.spin);
+  const brace = en.blocking ? CONFIG.controls.block.launchMul : 1;   // a braced robot barely leaves the ground
+  setAllVelocity(en, v => ({ x: r.f * wp.push * (en.blocking ? CONFIG.controls.block.knockMul : 1), y: -wp.launch * k * brace }));
+  Body.setAngularVelocity(en.body, r.f * wp.spin * brace);
   const tip = localToWorld(r, r.g.wedge[2].x, r.g.wedge[2].y);
   damage(en, wp.damage, r, tip.x, tip.y);
   floatText(en.body.position.x, en.body.position.y - 70, 'FLIP!', '#ffd23f', 22);
@@ -773,12 +1074,37 @@ function hammerImpact(r, en) {
   if (head.x > bd.min.x - 18 && head.x < bd.max.x + 18 && head.y > bd.min.y - 30 && head.y < bd.max.y + 15) {
     const bonus = en.flipped ? wp.flippedBonus : 1;
     damage(en, wp.damage * bonus, r, head.x, head.y);
-    Body.setVelocity(en.body, { x: en.body.velocity.x + r.f * 1.5, y: en.body.velocity.y + 4 });
+    const kb = en.blocking ? CONFIG.controls.block.knockMul : 1;
+    Body.setVelocity(en.body, { x: en.body.velocity.x + r.f * 1.5 * kb, y: en.body.velocity.y + 4 });
     if (bonus > 1) floatText(head.x, head.y - 50, 'SMASH!', '#ffd23f', 22);
   } else {
     sparks(head.x, head.y, 2, '#888888');
   }
 }
+
+// ---- INPUT: keyboard -> human action (bindings in CONFIG.controls.keys) ---------------------
+// INPUT.down = held key codes; INPUT.buffer[action] = seconds a fresh press stays "live" (input buffer).
+const INPUT = { down: new Set(), buffer: {} };
+function inputHeld(action) {
+  return CONFIG.controls.keys[action].some(k => INPUT.down.has(k)) || INPUT.buffer[action] > 0;
+}
+function keyToAction(code) {
+  for (const a in CONFIG.controls.keys) if (CONFIG.controls.keys[a].includes(code)) return a;
+  return null;
+}
+window.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  const fighting = fight && fight.phase !== 'result';
+  if (!fighting) return;
+  if (e.code && (e.code.startsWith('Arrow') || e.code === 'Space')) e.preventDefault();
+  const a = keyToAction(e.code);
+  if (!a) return;
+  INPUT.down.add(e.code);
+  if (!e.repeat) INPUT.buffer[a] = CONFIG.controls.bufferSeconds;
+});
+window.addEventListener('keyup', e => INPUT.down.delete(e.code));
+window.addEventListener('blur', () => { INPUT.down.clear(); INPUT.buffer = {}; });
 
 // ============================================================
 // DAMAGE: collisions, weapons, win conditions
@@ -792,6 +1118,8 @@ function handlePair(pair, active) {
   if (!fight || fight.phase !== 'fight') return;
   const a = pair.bodyA, b = pair.bodyB, ra = a.robot, rb = b.robot;
   if (ra && rb && ra !== rb) {
+    dashContact(ra, rb, pair);
+    dashContact(rb, ra, pair);
     weaponHit(a, ra, b, rb, pair, active);
     weaponHit(b, rb, a, ra, pair, active);
     if (!active && a.robo.role === 'chassis' && b.robo.role === 'chassis') bump(ra, rb, pair);
@@ -808,9 +1136,10 @@ function weaponHit(atkPart, atk, defPart, def, pair, active) {
     if (F.clock - atk.lastSpinHit < wp.hitCooldown || atk.spin < wp.spinMax * 0.25) return;
     const n = pair.collision.normal;
     const rel = Math.abs((def.body.velocity.x - atk.body.velocity.x) * n.x + (def.body.velocity.y - atk.body.velocity.y) * n.y);
-    const dmg = wp.base + wp.mul * (rel + atk.spin * wp.radius * 0.5);
+    const dmg = (wp.base + wp.mul * (rel + atk.spin * wp.radius * 0.5)) * (atk.revT > 0 ? CONFIG.controls.attack.revDamageMul : 1);
     const dir = Math.sign(def.body.position.x - atk.body.position.x) || atk.f;
-    const k = wp.knock * (atk.spin / wp.spinMax) * clamp(Math.sqrt(5.5 / def.totalMass), 0.5, 1.3);
+    const k = wp.knock * (atk.spin / wp.spinMax) * clamp(Math.sqrt(5.5 / def.totalMass), 0.5, 1.3) *
+              (def.blocking ? CONFIG.controls.block.knockMul : 1);
     setAllVelocity(def, v => ({ x: v.x + dir * k, y: v.y - k * 0.7 }));
     setAllVelocity(atk, v => ({ x: v.x - dir * k * 0.3, y: v.y }));
     atk.lastSpinHit = F.clock;
@@ -828,6 +1157,20 @@ function weaponHit(atkPart, atk, defPart, def, pair, active) {
       damage(def, closing * wp.mul * (role === 'ram' ? 1 : 0.4), atk, p.x, p.y);
     }
   }
+}
+
+// Dash attack: the first contact during a dash (in the dash direction) deals bonus damage + knockback
+function dashContact(atk, def, pair) {
+  if (atk.dashT <= 0 || atk.dashHit) return;
+  if ((Math.sign(def.body.position.x - atk.body.position.x) || atk.dashDir) !== atk.dashDir) return;
+  atk.dashHit = true;
+  const D = CONFIG.controls.dash;
+  const closing = Math.max(0, (atk.body.velocity.x - def.body.velocity.x) * atk.dashDir);
+  const k = D.knock * clamp(Math.sqrt(5.5 / def.totalMass), 0.6, 1.25) * (def.blocking ? CONFIG.controls.block.knockMul : 1);
+  setAllVelocity(def, v => ({ x: v.x + atk.dashDir * k, y: v.y - k * 0.4 }));
+  const p = contactPoint(pair);
+  damage(def, D.damage + closing * D.speedMul, atk, p.x, p.y);
+  floatText(p.x, p.y - 60, 'DASH!', '#ffb02e', 20);
 }
 
 function bump(ra, rb, pair) {
@@ -857,6 +1200,13 @@ function damage(target, amount, attacker, x, y) {
   if (!F || F.phase !== 'fight' || target.hp <= 0) return;
   let d = amount * (1 - target.build.armour * CONFIG.armour.reduction);
   if (attacker && attacker.rage) d *= 1 + CONFIG.rageDamageBonus;
+  const C = CONFIG.controls, raw = d;
+  if (target.blocking) d *= 1 - C.block.reduction;
+  else if (target.dodgeT > 0) d *= 1 - C.dodge.reduction;
+  if (d < raw && raw > 2 && F.clock - target.lastBlockText > 0.4) {
+    target.lastBlockText = F.clock;
+    floatText(target.body.position.x, target.body.position.y - 80, target.blocking ? 'BLOCKED' : 'EVADE', '#9fe8ff', 18);
+  }
   if (d < 0.5) return;
   target.hp = Math.max(0, target.hp - d);
   if (attacker) {
@@ -893,6 +1243,11 @@ function endFight(winner, method) {
   const F = fight;
   if (F.phase !== 'fight') return;
   F.phase = 'ko'; F.winner = winner; F.method = method;
+  if (AUTO_AI && typeof autolog === 'function') {   // AI-vs-AI harness line (parsed by tools/autotest.js)
+    const [a, b] = F.robots;
+    autolog(`AI ${a.model} vs ${b.model} -> ${winner ? winner.model : 'draw'} by ${method} at ${Math.round(CONFIG.fightSeconds - F.time)}s` +
+            ` hp ${Math.round(a.hp / a.maxHp * 100)}%/${Math.round(b.hp / b.maxHp * 100)}%`);
+  }
   F.slow = method !== 'Time';
   F.koT = F.slow ? CONFIG.slowMo.seconds : 1.4;
   const label = { KO: 'K.O.!', Pit: 'RING OUT!', Flip: 'FLIPPED!', Time: 'TIME!' }[method];
