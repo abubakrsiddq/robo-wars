@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Robo Olympics — Characters</title>
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--gold:#ffd23f;--text:#e8ecf5;--muted:#8a93a8}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#1a1f33,#07080d 70%);color:var(--text);font-family:"Segoe UI",system-ui,Arial,sans-serif;min-height:100vh;padding-bottom:40px}
+header{text-align:center;padding:22px 16px 6px}
+header h1{margin:0;font-size:40px;letter-spacing:3px;font-weight:900;font-style:italic;text-transform:uppercase;background:linear-gradient(90deg,#3aa0ff,#fff,#ff4d5e);-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{margin:6px 0 0;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;max-width:1200px;margin:22px auto 0;padding:0 18px}
+.card{background:linear-gradient(180deg,#171c2c,#10131e);border:1px solid #232a40;border-top:4px solid var(--hc);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+canvas.ch{width:100%;height:210px;background:radial-gradient(ellipse at 50% 85%,#1d2440,#0b0e17);border-radius:10px;display:block}
+.name{font-size:20px;font-weight:900;font-style:italic;text-transform:uppercase;margin:10px 0 2px;color:var(--hc)}
+.tag{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.chip{font-size:11px;background:#1b2135;border:1px solid #2a3150;border-radius:20px;padding:3px 9px;color:#cdd5ea}
+.chip b{color:var(--gold)}
+.plan{font-size:12px;color:#9fb0d0;background:#0b0e17;border:1px dashed #2a3150;border-radius:8px;padding:7px 9px;line-height:1.5}
+.foot{max-width:1200px;margin:26px auto 0;padding:0 18px;color:var(--muted);font-size:13px;line-height:1.7}
+code{background:#0b0e17;border:1px solid #2a3150;border-radius:5px;padding:1px 6px;color:#cdd5ea}
+</style>
+</head>
+<body>
+<header>
+  <h1>Robo Olympics — Characters</h1>
+  <p>The full fighter roster. Each one is drawn live, exactly as it appears in the game.</p>
+</header>
+<div class="grid" id="grid"></div>
+<div class="foot">
+  <b>Add a character:</b> edit the <code>CHARACTERS</code> list at the top of this file.
+  Give it a <code>name</code>, <code>tag</code>, <code>color</code>, <code>accent</code>,
+  a <code>crest</code> (<code>crest</code>/<code>ears</code>/<code>crown</code>/<code>mask</code>) or a
+  <code>face</code> (<code>modi</code>/<code>abhijit</code>), and a <code>build</code>
+  (chassis <code>light/medium/heavy</code>, wheels <code>small/large</code>,
+  weapon <code>spinner/hammer/flipper/ram</code>, armour <code>0–2</code>).
+</div>
+
+<script>
+'use strict';
+// ============================================================
+// CHARACTERS — the roster. Add or edit entries here.
+// ============================================================
+const CHARACTERS = [
+  { name: 'Chakra-Bot',    tag: 'Spin master',    color: '#d62828', accent: '#ffd23f', emblem: 'spiral', crest: 'crest',
+    build: { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 1 },
+    strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.' },
+  { name: 'Kavach-X',      tag: 'Fast phantom',   color: '#7b2fbf', accent: '#5ee7ff', emblem: 'core',   crest: 'mask',
+    build: { chassis: 'light', wheels: 'small', weapon: 'ram', armour: 0 },
+    strategy: 'Bait and juke at 200px, finish them off when they are weak. Avoid the edge.' },
+  { name: 'Vayu-Mace',     tag: 'Sky smasher',    color: '#e8791c', accent: '#ffe08a', emblem: 'core',   crest: 'ears',
+    build: { chassis: 'medium', wheels: 'large', weapon: 'hammer', armour: 2 },
+    strategy: 'Patient. Stay back until they are flipped, then smash them.' },
+  { name: 'Raja-Steel',    tag: 'Iron king',      color: '#8d97a8', accent: '#ffcf5a', emblem: 'bands',  crest: 'crown',
+    build: { chassis: 'heavy', wheels: 'large', weapon: 'flipper', armour: 0 },
+    strategy: 'Patient. Wait until they get close, then flip them. Push them into the pit.' },
+  { name: 'Narendra Modi', tag: 'The PM',         color: '#ff9933', accent: '#ffffff', emblem: 'core',   crest: null, face: 'modi',
+    build: { chassis: 'heavy', wheels: 'large', weapon: 'hammer', armour: 0 },
+    strategy: 'Patient. Stay strong, attack when they get close, and avoid the edge.' },
+  { name: 'Abhijit Dipke', tag: 'Build-day boss', color: '#13a89e', accent: '#ffe066', emblem: 'spiral', crest: null, face: 'abhijit',
+    build: { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 1 },
+    strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.' },
+];
+
+// ============================================================
+// CONFIG + geometry (kept in sync with the game, index.html)
+// ============================================================
+const CONFIG = {
+  chassis: {
+    light:  { name: 'Light',  cost: 20, hp: 80,  w: 74,  h: 24 },
+    medium: { name: 'Medium', cost: 35, hp: 120, w: 86,  h: 28 },
+    heavy:  { name: 'Heavy',  cost: 50, hp: 170, w: 100, h: 34 },
+  },
+  wheels:  { small: { name: 'Small', cost: 10, r: 11 }, large: { name: 'Large', cost: 20, r: 16 } },
+  weapons: { spinner: { name: 'Spinner', cost: 25, radius: 14, reach: 24 }, hammer: { name: 'Hammer', cost: 25, reach: 40 },
+             flipper: { name: 'Flipper', cost: 20, reach: 48 }, ram: { name: 'Ram', cost: 10, reach: 34 } },
+  armour: { cost: 10 },
+};
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+function cost(b) { return CONFIG.chassis[b.chassis].cost + CONFIG.wheels[b.wheels].cost + CONFIG.weapons[b.weapon].cost + b.armour * CONFIG.armour.cost; }
+function geometry(b, f) {
+  const ch = CONFIG.chassis[b.chassis], wh = CONFIG.wheels[b.wheels], wp = CONFIG.weapons[b.weapon];
+  const w = ch.w, h = ch.h, r = wh.r, wheelY = h / 2 - 2, wheelX = w / 2 - r - 2, ground = wheelY + r, fx = f * w / 2;
+  const g = { w, h, r, f, ground, wheels: [{ x: f * wheelX, y: wheelY }, { x: -f * wheelX, y: wheelY }] };
+  if (b.weapon === 'ram')     g.wedge = [{ x: fx, y: -h / 2 }, { x: fx, y: ground - 5 }, { x: fx + f * 32, y: ground - 5 }];
+  if (b.weapon === 'flipper') g.wedge = [{ x: fx, y: -2 }, { x: fx, y: ground - 4 }, { x: fx + f * 44, y: ground - 4 }];
+  if (b.weapon === 'spinner') g.spinner = { x: fx + f * 10, y: -2, r: wp.radius };
+  if (b.weapon === 'hammer')  g.hammer = { x: f * w * 0.05, y: -h / 2, len: 0.45 * w + 38 };
+  return g;
+}
+
+// ============================================================
+// DRAWING — the humanoid fighter (identical to the game)
+// ============================================================
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = s => clamp(Math.round(amt < 0 ? s * (1 + amt) : s + (255 - s) * amt), 0, 255);
+  return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`;
+}
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function hammerAngle(t) { const rest = -1.75, strike = 0.05; if (t < 0) return rest; if (t < 0.16) return lerp(rest, strike, (t / 0.16) ** 2); if (t < 0.3) return strike; return lerp(strike, rest, Math.min(1, (t - 0.3) / 0.5)); }
+function flipAngle(t) { if (t < 0) return 0; if (t < 0.08) return t / 0.08; if (t < 0.2) return 1; return lerp(1, 0, Math.min(1, (t - 0.2) / 0.3)); }
+function drawSpinner(c, x, y, r, a, spinFrac) {
+  c.save(); c.translate(x, y);
+  if (spinFrac > 0.3) { c.strokeStyle = `rgba(255,255,255,${0.15 + spinFrac * 0.25})`; c.lineWidth = 4; c.beginPath(); c.arc(0, 0, r + 4, 0, Math.PI * 2); c.stroke(); }
+  c.rotate(a);
+  c.fillStyle = '#c3cad8'; c.strokeStyle = '#5c6479'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill(); c.stroke();
+  c.fillStyle = '#e9edf5';
+  for (let i = 0; i < 3; i++) { c.rotate(Math.PI * 2 / 3); c.beginPath(); c.moveTo(r - 3, -4); c.lineTo(r + 6, 0); c.lineTo(r - 3, 5); c.fill(); }
+  c.fillStyle = '#2a2f3f'; c.beginPath(); c.arc(0, 0, r * 0.3, 0, Math.PI * 2); c.fill();
+  c.restore();
+}
+function drawGlasses(c, hx, cy) {
+  c.strokeStyle = '#10131e'; c.lineWidth = 1.6;
+  c.beginPath(); c.arc(hx + 3.6, cy, 3.1, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.arc(hx - 3.6, cy, 3.1, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.moveTo(hx - 0.5, cy); c.lineTo(hx + 0.5, cy); c.stroke();
+}
+function drawFace(c, face, hx, cy, r, f) {
+  if (face === 'modi') {
+    c.fillStyle = '#f2f4f8';
+    c.beginPath(); c.arc(hx, cy - 1, r + 0.5, Math.PI * 1.03, Math.PI * 1.97); c.fill();
+    c.beginPath(); c.arc(hx - r * 0.72, cy + 1, r * 0.5, 0, Math.PI * 2); c.arc(hx + r * 0.72, cy + 1, r * 0.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#eceff4';
+    c.beginPath(); c.arc(hx, cy + 2, r - 0.5, 0.08 * Math.PI, 0.92 * Math.PI); c.fill();
+    drawGlasses(c, hx, cy - 1);
+  } else if (face === 'abhijit') {
+    c.fillStyle = '#1a2130';
+    c.beginPath(); c.arc(hx, cy - 1, r + 0.5, Math.PI * 1.06, Math.PI * 1.94); c.fill();
+    c.fillRect(hx - r + 1, cy - 5, (r - 1) * 2, 3);
+    c.fillStyle = '#2a3346';
+    c.beginPath(); c.arc(hx, cy + 3, r - 1.5, 0.15 * Math.PI, 0.85 * Math.PI); c.fill();
+    drawGlasses(c, hx, cy - 1);
+  }
+}
+function drawCrest(c, sk, hx, top, acc) {
+  c.fillStyle = acc;
+  if (sk.crest === 'crest')      { c.beginPath(); c.moveTo(hx - 7, top); c.lineTo(hx, top - 12); c.lineTo(hx + 7, top); c.fill(); }
+  else if (sk.crest === 'ears')  { [-7, 7].forEach(d => { c.beginPath(); c.moveTo(hx + d - 3, top); c.lineTo(hx + d, top - 9); c.lineTo(hx + d + 3, top); c.fill(); }); }
+  else if (sk.crest === 'crown') { c.beginPath(); c.moveTo(hx - 9, top); for (let k = 0; k < 3; k++) { c.lineTo(hx - 9 + k * 6 + 3, top - 8); c.lineTo(hx - 9 + (k + 1) * 6, top); } c.fill(); }
+  else if (sk.crest === 'mask')  { c.fillStyle = '#10131e'; roundRect(c, hx - 9, top + 6, 18, 6, 2); c.fill(); c.fillStyle = acc; c.fillRect(hx - 6, top + 8, 12, 2); }
+}
+function drawArmWeapon(c, b, g, color, acc, anim, sx, sy) {
+  const { w, f } = g, t = anim.t || 0;
+  const drawArm = (hx, hy) => {
+    c.strokeStyle = color; c.lineWidth = 7; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(sx, sy); c.lineTo(hx, hy); c.stroke();
+    c.fillStyle = acc; c.beginPath(); c.arc(hx, hy, 4, 0, Math.PI * 2); c.fill();
+  };
+  if (b.weapon === 'hammer') {
+    const th = hammerAngle(anim.hammerT);
+    const hx = sx + f * 30 * Math.cos(th), hy = sy + 30 * Math.sin(th);
+    drawArm(hx, hy);
+    c.save(); c.translate(hx, hy); c.fillStyle = '#3a4156'; c.strokeStyle = acc; c.lineWidth = 2;
+    roundRect(c, -8, -8, 16, 16, 3); c.fill(); c.stroke(); c.restore();
+  } else if (b.weapon === 'spinner') {
+    const hx = sx + f * 22, hy = sy + 5;
+    drawArm(hx, hy);
+    drawSpinner(c, hx, hy, 12, t * 22, 1);
+  } else if (b.weapon === 'flipper') {
+    const fl = flipAngle(anim.flipT);
+    const hx = sx + f * (18 + fl * 4), hy = sy + 12 - fl * 26;
+    drawArm(hx, hy);
+    c.save(); c.translate(hx, hy); c.rotate(-f * (0.5 + fl)); c.fillStyle = '#ffd23f'; c.strokeStyle = '#fff3b0'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(f * 20, -4); c.lineTo(f * 20, 4); c.closePath(); c.fill(); c.stroke(); c.restore();
+  } else {
+    const hx = sx + f * 20, hy = sy + 6;
+    drawArm(hx, hy);
+    c.save(); c.translate(hx, hy); c.fillStyle = '#9aa3b5'; c.strokeStyle = '#d7deea'; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(0, -7); c.lineTo(f * 10, 0); c.lineTo(0, 7); c.closePath(); c.fill(); c.stroke(); c.restore();
+  }
+}
+function drawFighter(c, b, g, color, skin, anim) {
+  const { w, f } = g, t = anim.t || 0;
+  const feet = g.ground, hipY = feet - 30, shoulderY = hipY - 26, headY = shoulderY - 15, headR = 11;
+  const acc = skin ? skin.accent : shade(color, 0.5), dark = shade(color, -0.5);
+  const swing = Math.sin(t * 9) * 0.1;
+  const hipX = w * 0.1;
+  [[-1, swing], [1, -swing]].forEach(([side, sw]) => {
+    const kneeX = side * hipX + sw * 7, footX = side * hipX + sw * 13;
+    c.strokeStyle = dark; c.lineWidth = 7; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(side * hipX, hipY); c.lineTo(kneeX, (hipY + feet) / 2); c.lineTo(footX, feet); c.stroke();
+    c.fillStyle = '#10131e'; c.beginPath(); c.ellipse(footX + f * 3, feet, 7, 3.5, 0, 0, Math.PI * 2); c.fill();
+  });
+  const shX = w * 0.17;
+  c.strokeStyle = dark; c.lineWidth = 6; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-f * shX, shoulderY + 3); c.lineTo(-f * shX - f * 4, shoulderY + 17 - swing * 4); c.stroke();
+  const tg = c.createLinearGradient(0, shoulderY, 0, hipY);
+  tg.addColorStop(0, color); tg.addColorStop(1, dark);
+  c.fillStyle = tg; c.strokeStyle = acc; c.lineWidth = 2;
+  roundRect(c, -w * 0.2, shoulderY, w * 0.4, hipY - shoulderY, 7); c.fill(); c.stroke();
+  c.fillStyle = acc; c.shadowColor = acc; c.shadowBlur = 6 + 4 * Math.sin(t * 5);
+  c.beginPath(); c.arc(f * 2, (shoulderY + hipY) / 2, 4.5, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+  for (let i = 0; i < b.armour; i++) {
+    c.fillStyle = i ? '#8e98ad' : '#b8c2d8'; c.strokeStyle = '#59627a'; c.lineWidth = 1;
+    roundRect(c, -w * 0.24, shoulderY - 2 - i * 4, w * 0.48, 4, 2); c.fill(); c.stroke();
+  }
+  const hx = f * 2, human = skin && (skin.face === 'modi' || skin.face === 'abhijit');
+  c.fillStyle = human ? '#e3b183' : shade(color, 0.12); c.strokeStyle = acc; c.lineWidth = 2;
+  c.beginPath(); c.arc(hx, headY, headR, 0, Math.PI * 2); c.fill(); c.stroke();
+  if (skin && skin.crest) drawCrest(c, skin, hx, headY - headR, acc);
+  if (human) drawFace(c, skin.face, hx, headY, headR, f);
+  else { c.fillStyle = '#bff4ff'; c.shadowColor = '#7fe7ff'; c.shadowBlur = 8; c.fillRect(f > 0 ? hx : hx - 8, headY - 3, 8, 4); c.shadowBlur = 0; }
+  drawArmWeapon(c, b, g, color, acc, anim, f * shX, shoulderY + 3);
+}
+
+// ============================================================
+// GALLERY
+// ============================================================
+const cards = CHARACTERS.map(ch => {
+  const b = ch.build, g = geometry(b, 1);
+  const el = document.createElement('div');
+  el.className = 'card'; el.style.setProperty('--hc', ch.color);
+  const wp = CONFIG.weapons[b.weapon], cs = CONFIG.chassis[b.chassis];
+  el.innerHTML =
+    `<canvas class="ch" width="260" height="210"></canvas>` +
+    `<div class="name">${ch.name}</div>` +
+    `<div class="tag">${ch.tag}</div>` +
+    `<div class="chips">` +
+      `<span class="chip">${cs.name} · <b>${cs.hp} HP</b></span>` +
+      `<span class="chip">${CONFIG.wheels[b.wheels].name} wheels</span>` +
+      `<span class="chip">${wp.name}</span>` +
+      `<span class="chip">${b.armour} armour</span>` +
+      `<span class="chip"><b>${cost(b)}</b>/100 pts</span>` +
+    `</div>` +
+    `<div class="plan">“${ch.strategy}”</div>`;
+  document.getElementById('grid').appendChild(el);
+  return { ch, g, b, cv: el.querySelector('canvas') };
+});
+
+function frame() {
+  const t = performance.now() / 1000;
+  cards.forEach(({ ch, g, b, cv }, i) => {
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const floorY = cv.height - 28;
+    ctx.fillStyle = '#2a3150'; ctx.fillRect(24, floorY, cv.width - 48, 3);
+    ctx.save();
+    ctx.translate(cv.width / 2, floorY - g.ground + Math.sin(t * 1.6 + i) * 2);   // gentle idle bob
+    ctx.scale(1.35, 1.35);                                                        // zoom so the character fills the card
+    drawFighter(ctx, b, g, ch.color, ch, { hammerT: -1, flipT: -1, boost: false, vx: 0, idle: true, t });
+    ctx.restore();
+  });
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>
