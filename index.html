@@ -10,51 +10,48 @@
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(ellipse at top,#1a1f33,#07080d 70%);color:var(--text);font-family:"Segoe UI",system-ui,Arial,sans-serif;min-height:100vh}
 button{font:inherit;cursor:pointer}
-header{text-align:center;padding:14px 0 4px}
-header h1{margin:0;font-size:44px;letter-spacing:4px;font-weight:900;font-style:italic;text-transform:uppercase;background:linear-gradient(90deg,var(--p1),#fff,var(--p2));-webkit-background-clip:text;background-clip:text;color:transparent}
-header p{margin:2px 0 0;color:var(--muted);font-size:13px}
-
-#builderScreen{display:grid;grid-template-columns:1fr 160px 1fr;gap:16px;padding:10px 20px 30px;max-width:1300px;margin:0 auto;align-items:start}
-.panel{--c:var(--p1);background:linear-gradient(180deg,#171c2c,#10131e);border:1px solid #232a40;border-top:4px solid var(--c);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
-.panel.p2{--c:var(--p2)}
-.panel h2{margin:0 0 8px;color:var(--c);font-size:13px;letter-spacing:2px;text-transform:uppercase}
-.row{display:flex;gap:8px;align-items:center}
-input.name{flex:1;min-width:0;background:#0b0e17;border:1px solid #2a3150;color:var(--text);font-size:18px;font-weight:700;padding:8px 10px;border-radius:8px}
+header{text-align:center;padding:6px 0 0}
+header h1{margin:0;font-size:30px;letter-spacing:4px;font-weight:900;font-style:italic;text-transform:uppercase;background:linear-gradient(90deg,var(--p1),#fff,var(--p2));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{margin:0;color:var(--muted);font-size:13px}
 .small-btn{background:#232a40;color:var(--text);border:1px solid #333c5c;border-radius:8px;padding:8px 10px;white-space:nowrap}
-.small-btn:hover{border-color:var(--c)}
-canvas.preview{width:100%;height:auto;background:radial-gradient(ellipse at 50% 80%,#1d2440,#0b0e17);border-radius:10px;margin:10px 0 4px;display:block}
-.group{margin:8px 0}
-.lbl{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
-.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:6px}
-.opt{background:#0d111c;border:1px solid #262e48;color:var(--text);border-radius:8px;padding:6px 8px;text-align:left;display:flex;flex-direction:column;gap:1px;transition:.12s}
-.opt b{font-size:13px}.opt span{font-size:11px;color:var(--gold)}.opt small{font-size:10px;color:var(--muted)}
-.opt:hover{border-color:var(--c)}
-.opt.sel{border-color:var(--c);background:color-mix(in srgb,var(--c) 18%,#0d111c);box-shadow:0 0 0 1px var(--c) inset}
-.armour{display:flex;align-items:center;gap:8px}
-.plates{display:flex;gap:4px}
-.plate{width:28px;height:10px;border-radius:2px;background:#262e48}.plate.on{background:#b8c2d8}
-.budget{margin:10px 0}
-.bar{height:10px;background:#0b0e17;border-radius:6px;overflow:hidden;border:1px solid #262e48}
-.fill{height:100%;background:linear-gradient(90deg,#3ddc97,#ffd23f);transition:width .2s}
-.fill.over{background:#ff4d5e}
-.budget-text{display:flex;justify-content:space-between;font-size:12px;margin-top:4px;color:var(--muted)}
-.budget-text b{color:var(--text)}.budget-text .over{color:#ff4d5e}
-textarea{width:100%;min-height:64px;background:#0b0e17;border:1px solid #2a3150;color:var(--text);border-radius:8px;padding:8px;font-family:inherit;font-size:13px;line-height:1.4;resize:vertical}
-.presets{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
-.preset{font-size:11px;background:#1b2135;border:1px solid #2a3150;color:#cdd5ea;border-radius:20px;padding:3px 9px}
-.preset:hover{border-color:var(--c)}
-.parsed{font-size:11px;color:#9fb0d0;background:#0b0e17;border:1px dashed #2a3150;border-radius:8px;padding:6px 8px;margin-top:6px;line-height:1.7}
-.chip{display:inline-block;background:#1b2135;border-radius:4px;padding:0 6px;margin:1px 3px 1px 0;color:var(--text)}
-.chip i{color:var(--muted);font-style:normal}
-.tags{color:var(--muted)}
-.ready{width:100%;margin-top:10px;padding:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;border-radius:10px;border:2px solid var(--c);background:transparent;color:var(--c)}
-.ready.on{background:var(--c);color:#fff}
-.ready:disabled{opacity:.4;cursor:not-allowed}
-.center{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:140px;text-align:center}
-.vs{font-size:60px;font-weight:900;font-style:italic;color:var(--gold);text-shadow:0 0 24px rgba(255,210,63,.5)}
-#fightBtn{padding:16px 22px;font-size:22px;font-weight:900;letter-spacing:2px;border:none;border-radius:12px;background:linear-gradient(180deg,#ffd23f,#ff8a1f);color:#1a1000;text-transform:uppercase;box-shadow:0 6px 0 #a34d00}
-#fightBtn:disabled{filter:grayscale(1);opacity:.35;cursor:not-allowed;box-shadow:none}
-.hint{font-size:11px;color:var(--muted)}
+.small-btn:hover{border-color:var(--gold)}
+
+/* ---- BUILDER ---- */
+#builderScreen{display:grid;grid-template-columns:minmax(0,1.5fr) 250px minmax(0,1fr);gap:16px;padding:6px 20px 12px;max-width:1360px;margin:0 auto;align-items:start}
+.panel{--c:var(--p1);background:linear-gradient(180deg,#171c2c,#10131e);border:1px solid #232a40;border-top:4px solid var(--c);border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.panel.p2{--c:var(--p2)}
+.panel h2{margin:0 0 8px;color:var(--c);font-size:14px;letter-spacing:3px;text-transform:uppercase}
+.row{display:flex;gap:8px;align-items:center}
+input.name{flex:1;min-width:0;background:#0b0e17;border:1px solid #2a3150;color:var(--text);font-size:18px;font-weight:700;padding:7px 10px;border-radius:8px}
+canvas.preview{width:100%;height:auto;background:radial-gradient(ellipse at 50% 80%,#1d2440,#0b0e17);border-radius:10px;margin:8px 0 2px;display:block}
+.group{margin:6px 0 0}
+.lbl{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.pick{background:#0d111c;border:2px solid #262e48;color:var(--text);border-radius:10px;padding:5px 8px;text-align:left;display:flex;flex-direction:column;gap:2px;transition:.12s}
+.pick .ic{font-size:18px;line-height:1}
+.pick b{font-size:14px}
+.pick small{font-size:11px;color:var(--muted);line-height:1.2;min-height:26px}
+.pick:hover{border-color:#4a5578;transform:translateY(-1px)}
+.pick.sel{border-color:var(--c);background:color-mix(in srgb,var(--c) 18%,#0d111c);box-shadow:0 0 14px color-mix(in srgb,var(--c) 40%,transparent)}
+.stat{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat span{width:42px}
+.stat i{flex:1;height:5px;background:#1b2135;border-radius:3px;overflow:hidden}
+.stat i u{display:block;height:100%;background:var(--c);border-radius:3px}
+.foe{--c:var(--p2);display:grid;grid-template-columns:96px 1fr;gap:4px 10px;align-items:center;margin-bottom:8px;width:100%}
+.foe canvas{width:96px;height:56px;background:radial-gradient(ellipse at 50% 80%,#1d2440,#0b0e17);border-radius:6px}
+.foe .tx{display:flex;flex-direction:column;gap:2px}
+.foe b{font-size:15px}
+.foe small{font-size:11px;color:var(--muted);line-height:1.3;min-height:0}
+.tier{display:inline-block;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:1px 8px;border-radius:10px;color:#10131e;width:max-content}
+.center{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:80px;text-align:center}
+.vs{font-size:56px;font-weight:900;font-style:italic;color:var(--gold);text-shadow:0 0 24px rgba(255,210,63,.5)}
+#fightBtn{padding:18px 26px;font-size:26px;font-weight:900;letter-spacing:2px;border:none;border-radius:12px;background:linear-gradient(180deg,#ffd23f,#ff8a1f);color:#1a1000;text-transform:uppercase;box-shadow:0 6px 0 #a34d00}
+#fightBtn:hover{filter:brightness(1.1)}
+#fightBtn:active{transform:translateY(4px);box-shadow:0 2px 0 #a34d00}
+.keys{font-size:12px;color:var(--muted);background:#0f1320;border:1px solid #232a40;border-radius:10px;padding:8px 12px;line-height:1.9;text-align:left}
+.keys h3{margin:0 0 2px;font-size:11px;letter-spacing:2px;color:var(--text);text-transform:uppercase}
+kbd{display:inline-block;min-width:22px;text-align:center;background:#232a40;border:1px solid #3a4468;border-bottom-width:3px;border-radius:5px;padding:0 5px;color:var(--text);font:700 11px monospace;margin-right:2px}
+#randomMatchBtn{display:none}
 
 #fightScreen{display:none;padding:12px}
 #arena{display:block;width:100%;max-width:1200px;margin:0 auto;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.6);background:#05060a}
@@ -78,16 +75,21 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 
 <header>
   <h1>Robo Olympics</h1>
-  <p>Build it. Brief it. Watch it brawl.</p>
+  <p>Pick your robot. Pick your rival. Fight!</p>
 </header>
 
 <div id="builderScreen">
   <div class="panel p1" id="panel0"></div>
   <div class="center">
     <div class="vs">VS</div>
-    <button id="fightBtn" disabled>Fight!</button>
-    <div class="hint" id="fightHint">Both players must be Ready</div>
-    <button class="small-btn" id="randomMatchBtn">🎲 Random Match</button>
+    <button id="fightBtn">Fight!</button>
+    <div class="keys">
+      <h3>Controls</h3>
+      <kbd>&larr;</kbd><kbd>&rarr;</kbd> move &nbsp;<kbd>&uarr;</kbd> hop &nbsp;<kbd>&darr;</kbd> brake<br>
+      <kbd>W</kbd> Attack &nbsp;<kbd>A</kbd> Dodge<br>
+      <kbd>S</kbd> Block &nbsp;<kbd>D</kbd> Dash
+    </div>
+    <button id="randomMatchBtn">Random</button>
   </div>
   <div class="panel p2" id="panel1"></div>
 </div>
@@ -176,6 +178,27 @@ const CONFIG = {
 
   // ---- SIMPLE BUILDER: Body / Attack / Defence cards -----------------------------------
   builder: {
+    storageKey: 'roboOlympics.builder.v2',
+    defaultModel: 'sonnet',
+    defaults: { name: 'Blue Thunder', body: 'brawler', attack: 'spinner', defence: 'plated' },
+    // card -> part mapping (stat bars are computed from the CONFIG.chassis/wheels/weapons/armour numbers)
+    body: {
+      scout:   { name: 'Scout',   icon: '\u{1F3CE}\uFE0F', desc: 'Light and zippy. Hard to pin down.', chassis: 'light',  wheels: 'small' },
+      brawler: { name: 'Brawler', icon: '\u{1F916}',        desc: 'Balanced frame with strong grip.',   chassis: 'medium', wheels: 'large' },
+      tank:    { name: 'Tank',    icon: '\u{1F6E1}\uFE0F', desc: 'Slow, heavy and very sturdy.',       chassis: 'heavy',  wheels: 'large' },
+    },
+    attack: {
+      spinner: { name: 'Spinner', icon: '\u{1F300}', desc: 'Buzzsaw. Shreds on contact.',   weapon: 'spinner' },
+      hammer:  { name: 'Hammer',  icon: '\u{1F528}', desc: 'Big overhead smash.',           weapon: 'hammer' },
+      flipper: { name: 'Flipper', icon: '\u{1F94F}', desc: 'Launch them. Flip them over.',  weapon: 'flipper' },
+      ram:     { name: 'Ram',     icon: '\u{1F40F}', desc: 'Charge up speed for damage.',   weapon: 'ram' },
+    },
+    defence: {
+      agile:    { name: 'Agile',    icon: '\u{1F4A8}', desc: 'No armour. Maximum speed.',    armour: 0 },
+      plated:   { name: 'Plated',   icon: '\u{1F9BE}', desc: 'One plate. Takes less damage.', armour: 1 },
+      fortress: { name: 'Fortress', icon: '\u{1F3F0}', desc: 'Two plates. Hard to hurt.',    armour: 2 },
+    },
+    typicalSpeed: 6,   // rough closing speed of a Ram/Spinner hit (only used for the stat bars)
   },
 
   // ---- GRAPHICS -----------------------------------------------------------------------
@@ -219,6 +242,11 @@ const PARTS = {
     return { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 0 };
   },
   randomName() { return pick(NAME_A) + ' ' + pick(NAME_B); },
+  // Card ids -> build, e.g. fromCards({body:'tank', attack:'ram', defence:'plated'})
+  fromCards(c) {
+    const B = CONFIG.builder, bo = B.body[c.body], at = B.attack[c.attack], de = B.defence[c.defence];
+    return { chassis: bo.chassis, wheels: bo.wheels, weapon: at.weapon, armour: de.armour };
+  },
 };
 
 // ============================================================
@@ -337,97 +365,118 @@ const FALLBACK = {
 // BUILDER UI
 // ============================================================
 // controller: 'human' (keyboard) | 'ai' (CONFIG.ai[model]) | 'strategy' (English text, used by #auto)
+const cards = { body: CONFIG.builder.defaults.body, attack: CONFIG.builder.defaults.attack, defence: CONFIG.builder.defaults.defence };
 const players = [
-  { id: 0, color: '#3aa0ff', facing: 1, name: 'Blue Thunder', ready: false, controller: 'human',
-    build: { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 1 },
+  { id: 0, color: '#3aa0ff', facing: 1, name: CONFIG.builder.defaults.name, controller: 'human',
+    build: PARTS.fromCards(cards),
     strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.' },
-  { id: 1, color: '#ff4d5e', facing: -1, name: 'Red Fury', ready: false, controller: 'ai', model: 'sonnet',
-    build: { chassis: 'heavy', wheels: 'large', weapon: 'flipper', armour: 0 },
+  { id: 1, facing: -1, controller: 'ai', model: CONFIG.builder.defaultModel,
+    name: '', color: '', build: {},
     strategy: 'Patient. Wait until they get close, then flip them. Push them into the pit.' },
 ];
 
-function optButtons(cat) {
-  const src = CONFIG[cat === 'weapon' ? 'weapons' : cat];
-  return Object.entries(src).map(([k, v]) =>
-    `<button class="opt" data-cat="${cat}" data-key="${k}"><b>${v.name}</b>` +
-    `<span>${v.cost} pts${v.hp ? ' · ' + v.hp + ' HP' : ''}</span><small>${v.desc}</small></button>`).join('');
+function setModel(model) {
+  const m = CONFIG.ai[model]; if (!m) return;
+  const p = players[1];
+  p.model = model; p.name = m.label; p.color = m.color; p.build = Object.assign({}, m.build);
+}
+
+function saveChoices() {
+  try { localStorage.setItem(CONFIG.builder.storageKey, JSON.stringify({ name: players[0].name, cards, model: players[1].model })); } catch (e) {}
+}
+function loadChoices() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CONFIG.builder.storageKey) || 'null'); if (!d) return;
+    if (typeof d.name === 'string' && d.name) players[0].name = d.name.slice(0, 18);
+    ['body', 'attack', 'defence'].forEach(k => { if (d.cards && CONFIG.builder[k][d.cards[k]]) cards[k] = d.cards[k]; });
+    if (CONFIG.ai[d.model]) players[1].model = d.model;
+  } catch (e) {}
+  players[0].build = PARTS.fromCards(cards);
+}
+
+// ---- stat bars: normalised across the cards of the same row, so they follow CONFIG ----
+function rawStats(cat, card) {
+  const C = CONFIG;
+  if (cat === 'body') {
+    const ch = C.chassis[card.chassis], wh = C.wheels[card.wheels];
+    return { Speed: ch.speed * wh.maxSpin, Grip: ch.mass * wh.friction, Tough: ch.hp };
+  }
+  if (cat === 'attack') {
+    const w = C.weapons[card.weapon], v = C.builder.typicalSpeed;
+    const hit = { spinner: w.base + w.mul * v, hammer: w.damage, flipper: w.damage + w.launch * 0.8, ram: w.mul * v }[card.weapon];
+    return { Power: hit, Rate: 1 / (w.hitCooldown || w.cooldown), Reach: w.reach };
+  }
+  const n = card.armour;
+  return { Tough: 1 / (1 - C.armour.reduction * n), Speed: 1 / (1 + C.armour.mass * n * 0.1) };
+}
+function statBars(cat, key) {
+  const row = CONFIG.builder[cat], me = rawStats(cat, row[key]), all = Object.values(row).map(c => rawStats(cat, c));
+  return Object.keys(me).map(k => {
+    const mx = Math.max(...all.map(a => a[k])), mn = Math.min(...all.map(a => a[k]));
+    const v = mx === mn ? 0.6 : 0.25 + 0.75 * (me[k] - mn) / (mx - mn);
+    return `<div class="stat"><span>${k}</span><i><u style="width:${Math.round(v * 100)}%"></u></i></div>`;
+  }).join('');
+}
+function cardRow(cat) {
+  return Object.entries(CONFIG.builder[cat]).map(([k, c]) =>
+    `<button class="pick" data-cat="${cat}" data-key="${k}"><span class="ic">${c.icon}</span><b>${c.name}</b><small>${c.desc}</small>${statBars(cat, k)}</button>`).join('');
 }
 
 function buildPanel(i) {
-  const p = players[i], el = document.getElementById('panel' + i);
-  el.innerHTML = `
-    <h2>Player ${i + 1}</h2>
-    <div class="row"><input class="name" maxlength="18"><button class="small-btn rand">🎲 Random</button></div>
-    <canvas class="preview" width="320" height="170"></canvas>
-    <div class="group"><span class="lbl">Chassis</span><div class="opts">${optButtons('chassis')}</div></div>
-    <div class="group"><span class="lbl">Wheels</span><div class="opts">${optButtons('wheels')}</div></div>
-    <div class="group"><span class="lbl">Weapon</span><div class="opts">${optButtons('weapon')}</div></div>
-    <div class="group"><span class="lbl">Armour plates (−15% dmg each, 10 pts)</span>
-      <div class="armour"><button class="small-btn arm" data-d="-1">−</button><div class="plates"></div><button class="small-btn arm" data-d="1">+</button></div></div>
-    <div class="budget"><div class="bar"><div class="fill"></div></div><div class="budget-text"><span class="cost"></span><span class="od"></span></div></div>
-    <span class="lbl">Strategy (plain English)</span>
-    <div class="presets">${STRATEGY_PRESETS.map((s, k) => `<button class="preset" data-k="${k}">${s.label}</button>`).join('')}</div>
-    <textarea class="strategy" spellcheck="false"></textarea>
-    <div class="parsed"></div>
-    <button class="ready">Ready</button>`;
-  el.querySelector('.name').value = p.name;
-  el.querySelector('.strategy').value = p.strategy;
-
-  el.addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.classList.contains('opt')) { p.build[b.dataset.cat] = b.dataset.key; p.ready = false; }
-    else if (b.classList.contains('arm')) { p.build.armour = clamp(p.build.armour + +b.dataset.d, 0, CONFIG.armour.max); p.ready = false; }
-    else if (b.classList.contains('rand')) {
-      p.build = PARTS.randomBuild(); p.name = PARTS.randomName(); p.strategy = pick(STRATEGY_PRESETS).text; p.ready = false;
-      el.querySelector('.name').value = p.name; el.querySelector('.strategy').value = p.strategy;
-    }
-    else if (b.classList.contains('preset')) { p.strategy = STRATEGY_PRESETS[+b.dataset.k].text; el.querySelector('.strategy').value = p.strategy; }
-    else if (b.classList.contains('ready')) { if (PARTS.cost(p.build) <= CONFIG.budget) p.ready = !p.ready; }
-    refreshPanel(i);
-  });
-  el.querySelector('.name').addEventListener('input', e => { p.name = e.target.value || 'Robot ' + (i + 1); refreshPanel(i); });
-  el.querySelector('.strategy').addEventListener('input', e => { p.strategy = e.target.value; refreshPanel(i); });
+  const el = document.getElementById('panel' + i);
+  if (i === 0) {
+    el.innerHTML = `
+      <h2>Your Robot</h2>
+      <div class="row"><input class="name" maxlength="18" spellcheck="false"><button class="small-btn rand" title="Random name">\u{1F3B2}</button></div>
+      <canvas class="preview" width="540" height="124"></canvas>
+      <div class="group"><span class="lbl">Body</span><div class="cards">${cardRow('body')}</div></div>
+      <div class="group"><span class="lbl">Attack</span><div class="cards">${cardRow('attack')}</div></div>
+      <div class="group"><span class="lbl">Defence</span><div class="cards">${cardRow('defence')}</div></div>`;
+    el.querySelector('.name').value = players[0].name;
+    el.addEventListener('click', e => {
+      const b = e.target.closest && e.target.closest('button'); if (!b) return;
+      if (b.classList.contains('pick')) cards[b.dataset.cat] = b.dataset.key;
+      else if (b.classList.contains('rand')) { players[0].name = PARTS.randomName(); el.querySelector('.name').value = players[0].name; }
+      else return;
+      players[0].build = PARTS.fromCards(cards);
+      refreshPanel(0); saveChoices();
+    });
+    el.querySelector('.name').addEventListener('input', e => { players[0].name = e.target.value || 'Robot'; saveChoices(); });
+  } else {
+    el.innerHTML = `<h2>Opponent</h2>` + Object.entries(CONFIG.ai).map(([k, m]) =>
+      `<button class="pick foe" data-model="${k}" style="--c:${m.color}"><canvas width="192" height="112"></canvas>` +
+      `<div class="tx"><b>${m.label}</b><span class="tier" style="background:${m.color}">${m.tier}</span></div>` +
+      `<small style="grid-column:1/3">${m.desc}</small></button>`).join('');
+    el.addEventListener('click', e => {
+      const b = e.target.closest && e.target.closest('button.pick'); if (!b) return;
+      setModel(b.dataset.model); refreshPanel(1); saveChoices();
+    });
+  }
 }
 
 function refreshPanel(i) {
   const p = players[i], el = document.getElementById('panel' + i);
-  el.querySelectorAll('.opt').forEach(b => b.classList.toggle('sel', p.build[b.dataset.cat] === b.dataset.key));
-  el.querySelector('.plates').innerHTML = Array.from({ length: CONFIG.armour.max }, (_, k) => `<div class="plate ${k < p.build.armour ? 'on' : ''}"></div>`).join('');
-  const cost = PARTS.cost(p.build), over = cost > CONFIG.budget;
-  if (over) p.ready = false;
-  const fill = el.querySelector('.fill');
-  fill.style.width = Math.min(100, cost / CONFIG.budget * 100) + '%';
-  fill.classList.toggle('over', over);
-  el.querySelector('.cost').innerHTML = `Weight: <b class="${over ? 'over' : ''}">${cost} / ${CONFIG.budget}</b> pts${over ? ' · <span class="over">OVER BUDGET</span>' : ''}`;
-  const od = Math.round((PARTS.overdrive(p.build) - 1) * 100);
-  el.querySelector('.od').textContent = od > 0 ? `Overdrive +${od}% speed` : '';
-
-  const beh = strategyToBehaviour(p.strategy), q = beh.params;
-  el.querySelector('.parsed').innerHTML =
-    `<span class="chip"><i>aggression</i> ${q.aggression.toFixed(2)}</span>` +
-    `<span class="chip"><i>distance</i> ${q.preferredDistance}px</span>` +
-    `<span class="chip"><i>attack</i> ${q.attackWhen}</span>` +
-    `<span class="chip"><i>retreat</i> ${q.retreatBelowHealth ? '<' + Math.round(q.retreatBelowHealth * 100) + '%' : 'never'}</span>` +
-    `<span class="chip"><i>edge caution</i> ${q.edgeCaution}</span>` +
-    (q.pitPush ? '<span class="chip">pit push</span>' : '') + (q.feint ? '<span class="chip">feints</span>' : '') +
-    `<div class="tags">read: ${beh.tags.join(' · ')}</div>`;
-
-  const rb = el.querySelector('.ready');
-  rb.disabled = over; rb.classList.toggle('on', p.ready);
-  rb.textContent = over ? 'Over budget' : p.ready ? '✓ Ready' : 'Ready';
-  drawPreview(i);
-  const both = players.every(pl => pl.ready);
-  document.getElementById('fightBtn').disabled = !both;
-  document.getElementById('fightHint').textContent = both ? 'Let’s go!' : 'Both players must be Ready';
+  if (i === 0) {
+    el.querySelectorAll('.pick').forEach(b => b.classList.toggle('sel', cards[b.dataset.cat] === b.dataset.key));
+    drawPreview(el.querySelector('canvas.preview'), p, 1.25);
+  } else {
+    el.querySelectorAll('.pick').forEach(b => {
+      b.classList.toggle('sel', b.dataset.model === p.model);
+      const m = CONFIG.ai[b.dataset.model];
+      drawPreview(b.querySelector('canvas'), { build: m.build, facing: -1, color: m.color }, 0.8);
+    });
+  }
 }
 
-function drawPreview(i) {
-  const p = players[i], cv = document.querySelector('#panel' + i + ' canvas'), ctx = cv.getContext('2d');
+// k = drawing scale. Calls the robot draw helpers (signatures are stable).
+function drawPreview(cv, p, k) {
+  const ctx = cv.getContext('2d');
   ctx.clearRect(0, 0, cv.width, cv.height);
-  const floorY = 150, g = PARTS.geometry(p.build, p.facing);
-  ctx.fillStyle = '#2a3150'; ctx.fillRect(20, floorY, cv.width - 40, 3);
+  const g = PARTS.geometry(p.build, p.facing), floorY = cv.height * 0.86;
+  ctx.fillStyle = '#2a3150'; ctx.fillRect(10, floorY, cv.width - 20, 3);
   ctx.save();
-  ctx.translate(cv.width / 2, floorY - g.ground);
+  ctx.translate(cv.width / 2, floorY - g.ground * k);
+  ctx.scale(k, k);
   drawChassisLocal(ctx, p.build, g, p.color, { hammer: CONFIG.hammerAngles.rest, flip: 0 });
   g.wheels.forEach(w => drawWheel(ctx, w.x, w.y, g.r, 0));
   if (g.spinner) drawSpinner(ctx, g.spinner.x, g.spinner.y, g.spinner.r, 0.3, 0);
@@ -1100,15 +1149,16 @@ document.getElementById('fightBtn').addEventListener('click', startFight);
 document.getElementById('rematchBtn').addEventListener('click', startFight);
 document.getElementById('backBtn').addEventListener('click', backToBuilder);
 document.getElementById('abortBtn').addEventListener('click', backToBuilder);
+// #auto harness hook (button is hidden): random builds for both sides, English-strategy controllers
 document.getElementById('randomMatchBtn').addEventListener('click', () => {
-  players.forEach((p, i) => {
+  players.forEach(p => {
     p.build = PARTS.randomBuild(); p.name = PARTS.randomName(); p.strategy = pick(STRATEGY_PRESETS).text; p.ready = true;
-    document.querySelector('#panel' + i + ' .name').value = p.name;
-    document.querySelector('#panel' + i + ' .strategy').value = p.strategy;
-    refreshPanel(i);
+    p.controller = 'strategy';
   });
   startFight();
 });
+if (!AUTO) loadChoices();
+setModel(players[1].model);
 buildPanel(0); buildPanel(1); refreshPanel(0); refreshPanel(1);
 
 let autoCount = 0;
