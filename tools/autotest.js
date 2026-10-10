@@ -7,7 +7,16 @@ const N = +(process.argv[3] || 40);
 const fs = require('fs');
 global.Matter = require('matter-js');
 const html = fs.readFileSync(process.argv[2], 'utf8');
-const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
+// Concatenate src/*.js (in <script src> order, CDN ignored) + any remaining inline script, then eval as one program.
+const path = require('path');
+const base = path.dirname(path.resolve(process.argv[2]));
+const parts = [];
+for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
+  const src = /\bsrc\s*=\s*["']([^"']+)["']/.exec(m[1]);
+  if (src) { if (!/^https?:/.test(src[1])) parts.push(fs.readFileSync(path.join(base, src[1]), 'utf8')); }
+  else if (m[2].trim()) parts.push(m[2]);
+}
+const script = parts.join('\n');
 const noop = () => {};
 const ctxStub = new Proxy({}, { get: (t, k) => k in t ? t[k] : (k.startsWith('create') ? () => ({ addColorStop: noop }) : noop), set: (t, k, v) => (t[k] = v, true) });
 const els = {};
