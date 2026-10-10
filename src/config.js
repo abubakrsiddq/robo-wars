@@ -35,8 +35,8 @@ const CONFIG = {
     heavy:  { name: 'Heavy',  cost: 50, hp: 170, w: 100, h: 34, mass: 8, speed: 0.78, desc: 'Slow, tanky' },
   },
   wheels: {
-    small: { name: 'Small', cost: 10, r: 11, friction: 0.55, accel: 0.35, maxSpin: 0.42, mass: 0.3, desc: 'Quick accel, low grip' },
-    large: { name: 'Large', cost: 20, r: 16, friction: 1.0,  accel: 0.16, maxSpin: 0.29, mass: 0.6, desc: 'Grip & push power' },
+    small: { name: 'Small', cost: 10, r: 11, friction: 0.55, accel: 0.45, maxSpin: 0.55, mass: 0.3, desc: 'Quick accel, low grip' },
+    large: { name: 'Large', cost: 20, r: 16, friction: 1.0,  accel: 0.22, maxSpin: 0.38, mass: 0.6, desc: 'Grip & push power' },
   },
   weapons: {
     spinner: { name: 'Spinner', cost: 25, desc: 'Big damage on contact', radius: 14, spinMax: 0.9, spinUp: 0.025, base: 3, mul: 0.95, hitCooldown: 0.25, knock: 2.2, reach: 24 },
@@ -86,13 +86,13 @@ const CONFIG = {
     bufferSeconds: 0.15,           // a move pressed this long before it is ready still fires
     keys: { left: ['ArrowLeft'], right: ['ArrowRight'], hop: ['ArrowUp'], brake: ['ArrowDown'],
             attack: ['KeyW'], dodge: ['KeyA'], block: ['KeyS'], dash: ['KeyD'] },
-    hop:    { velocity: 4.6, cooldown: 0.8, groundTol: 4 },          // ~38 px: too low to leapfrog
+    hop:    { velocity: 5.6, cooldown: 0.6, groundTol: 4 },          // ~56 px: still too low to leapfrog
     brake:  { factor: 0.55 },                                         // wheel spin kept per tick while braking
     attack: { revCooldown: 2.4, revTime: 0.7, revDamageMul: 1.4 },     // spinner W = rev burst
-    dodge:  { cooldown: 1.6, time: 0.32, speed: 8, lift: 1.5, reduction: 0.6, spinMul: 1.6, safeRoom: 130 },
+    dodge:  { cooldown: 1.2, time: 0.32, speed: 10, lift: 1.5, reduction: 0.6, spinMul: 1.6, safeRoom: 130 },
     block:  { maxHold: 1.6, cooldown: 2.2, releaseCooldown: 0.35, regenSeconds: 1.8, minStamina: 0.25,
               reduction: 0.65, driveMul: 0.35, launchMul: 0.3, knockMul: 0.4, downforce: 0.3, spinDamp: 0.8 },
-    dash:   { cooldown: 2.2, time: 0.35, speed: 9, spinMul: 1.8, damage: 7, speedMul: 0.8, knock: 3, reach: 170 },
+    dash:   { cooldown: 2.2, time: 0.35, speed: 11, spinMul: 1.8, damage: 7, speedMul: 0.8, knock: 3, reach: 170 },
   },
 
   // ---- SIMPLE BUILDER: Body / Attack / Defence cards -----------------------------------
