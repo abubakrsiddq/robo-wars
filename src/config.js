@@ -101,6 +101,13 @@ const CONFIG = {
               mistakeRate: 0.02, defendRate: 0.72, dodgeBias: 0.45, dashRate: 3, hopRate: 0, pitMargin: 140,
               aggression: 0.3, punish: 0.9, readsBlock: true, retreatBelow: 0, spacing: 18, spacingGain: 35, wobble: 0,
               pitPush: true, pitPushRoom: 230 },
+    // Fable: Opus's brain, but its robot carries two weapons (build.weapon2 = hammer on top) and fires both.
+    fable:  { label: 'Claude Fable',  tier: 'Hard',   color: '#f472b6', desc: 'Opus-level brain, two weapons: flipper launches you, hammer smashes you.',
+              build: { chassis: 'medium', wheels: 'large', weapon: 'flipper', weapon2: 'hammer', armour: 1 },
+              reaction: 0.1, decisionInterval: 0.05, predict: 0.9, aimError: 4, fireSlop: 0, randomFire: 0,
+              mistakeRate: 0.02, defendRate: 0.72, dodgeBias: 0.45, dashRate: 3, hopRate: 0, pitMargin: 140,
+              aggression: 0.3, punish: 0.9, readsBlock: true, retreatBelow: 0, spacing: 18, spacingGain: 35, wobble: 0,
+              pitPush: true, pitPushRoom: 230 },
   },
 
   // ---- PLAYER CONTROLS: arrows move, WASD = moves -------------------------------------

@@ -65,7 +65,7 @@ function aiSummary(log) {
       W[k].n++; if (w === x) W[k].win++;
     }
   }
-  const models = ['haiku', 'sonnet', 'opus'];
+  const models = [...new Set([...log.matchAll(/^AI (\w+) vs (\w+)/gm)].flatMap(m => [m[1], m[2]]))];
   console.log('win-rate matrix (row beats column, wins/games):');
   console.log('        ' + models.map(m => m.padEnd(10)).join(''));
   for (const a of models) console.log(a.padEnd(8) + models.map(b => {

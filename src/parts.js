@@ -11,10 +11,11 @@ const NAME_B = ['Crusher', 'Fang', 'Bolt', 'Smasher', 'Titan', 'Wrecker', 'Dynam
 const PARTS = {
   cost(b) {
     return CONFIG.chassis[b.chassis].cost + CONFIG.wheels[b.wheels].cost +
-           CONFIG.weapons[b.weapon].cost + b.armour * CONFIG.armour.cost;
+           CONFIG.weapons[b.weapon].cost + (b.weapon2 ? CONFIG.weapons[b.weapon2].cost : 0) + b.armour * CONFIG.armour.cost;
   },
   overdrive(b) { return 1 + Math.max(0, CONFIG.budget - PARTS.cost(b)) * CONFIG.overdrivePerPoint; },
-  // Local coords: origin = chassis centre, y down, f = facing (+1 right, -1 left)
+  // Local coords: origin = chassis centre, y down, f = facing (+1 right, -1 left).
+  // Optional b.weapon2 (AI only, e.g. Claude Fable): only 'hammer' fits, on top, next to one front weapon.
   geometry(b, f) {
     const ch = CONFIG.chassis[b.chassis], wh = CONFIG.wheels[b.wheels], wp = CONFIG.weapons[b.weapon];
     const w = ch.w, h = ch.h, r = wh.r;
@@ -25,7 +26,7 @@ const PARTS = {
     if (b.weapon === 'ram')     g.wedge = [{ x: fx, y: -h / 2 }, { x: fx, y: ground - 5 }, { x: fx + f * 32, y: ground - 5 }];
     if (b.weapon === 'flipper') g.wedge = [{ x: fx, y: -2 }, { x: fx, y: ground - 4 }, { x: fx + f * 44, y: ground - 4 }];
     if (b.weapon === 'spinner') g.spinner = { x: fx + f * 10, y: -2, r: wp.radius };
-    if (b.weapon === 'hammer')  g.hammer = { x: f * w * 0.05, y: -h / 2, len: 0.45 * w + 38 };
+    if (b.weapon === 'hammer' || b.weapon2 === 'hammer') g.hammer = { x: f * w * 0.05, y: -h / 2, len: 0.45 * w + 38 };
     return g;
   },
   randomBuild() {

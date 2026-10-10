@@ -1,7 +1,7 @@
 'use strict';
 // ============================================================
 // CONTROLS: keyboard input and the single action -> physics path
-// OWNS:    INPUT state, humanAction, getAction (human/AI/strategy -> action), cooldown ticking, applyAction (drive/hop/brake/attack/dodge/block/dash)
+// OWNS:    INPUT state, humanAction, getAction (human/AI/strategy -> action), cooldown ticking, applyAction (drive/hop/brake/attack/attack2/dodge/block/dash)
 // EXPORTS: INPUT, IDLE_ACTION, getAction, humanAction, setCd, tickMoves, applyAction, isGrounded
 // READS:   CONFIG, clamp, Body, fight, FALLBACK, buildState, fireWeapon, sparks, dust, floatText, rectCentre, setAllVelocity
 // ============================================================
@@ -14,7 +14,7 @@ function isGrounded(r) {
                             w.position.x > fight.floorL - r.g.r && w.position.x < fight.floorR + r.g.r);
 }
 
-const IDLE_ACTION = { drive: 0, jump: false, attack: false, dodge: false, block: false, dash: false, brake: false, mode: '' };
+const IDLE_ACTION = { drive: 0, jump: false, attack: false, attack2: false, dodge: false, block: false, dash: false, brake: false, mode: '' };
 
 function getAction(r, en) {
   if (r.controller === 'human') return humanAction(r, en);
@@ -23,7 +23,7 @@ function getAction(r, en) {
     const out = r.behaviour.decide(s);
     if (!out || !isFinite(out.drive)) throw new Error('decide() returned invalid output');
     if (r.controller === 'ai') {
-      return { drive: clamp(out.drive, -1, 1), jump: !!out.jump, attack: !!out.attack, dodge: !!out.dodge,
+      return { drive: clamp(out.drive, -1, 1), jump: !!out.jump, attack: !!out.attack, attack2: !!out.attack2, dodge: !!out.dodge,
                block: !!out.block, dash: !!out.dash, brake: !!out.brake, mode: String(out.mode || '') };
     }
     return { ...IDLE_ACTION, drive: clamp(out.drive, -1, 1) * r.f, attack: !!out.fire, mode: out.mode || '' };
@@ -37,7 +37,7 @@ function getAction(r, en) {
 function humanAction(r, en) {
   const k = inputHeld;
   return { drive: (k('right') ? 1 : 0) - (k('left') ? 1 : 0), jump: k('hop'), brake: k('brake'),
-           attack: k('attack'), dodge: k('dodge'), block: k('block'), dash: k('dash'), mode: '' };
+           attack: k('attack'), attack2: false, dodge: k('dodge'), block: k('block'), dash: k('dash'), mode: '' };
 }
 
 function setCd(r, move, t) { r.moves[move].cd = t; r.moves[move].max = Math.max(t, 0.01); }
@@ -52,6 +52,7 @@ function tickMoves(r, gdt) {
   m.block.cd = Math.max(0, m.block.cd - gdt);
   m.dash.cd = Math.max(0, m.dash.cd - gdt);
   m.attack.cd = r.cooldown;
+  if (m.attack2) m.attack2.cd = r.cooldown2 = Math.max(0, r.cooldown2 - gdt);
   if (r.blocking) r.blockHold = Math.min(1, r.blockHold + gdt / C.block.maxHold);
   else r.blockHold = Math.max(0, r.blockHold - gdt / C.block.regenSeconds);
 }
@@ -103,7 +104,9 @@ function applyAction(r, en, act) {
     Body.setAngularVelocity(w, av);
   });
   if (act.attack && r.cooldown <= 0 && live && !r.blocking) fireWeapon(r, en);
+  if (act.attack2 && m.attack2 && r.cooldown2 <= 0 && live && !r.blocking) fireWeapon(r, en, 2);   // build.weapon2 (AI only)
   m.attack.cd = r.cooldown;
+  if (m.attack2) m.attack2.cd = r.cooldown2;
 }
 
 // ---- INPUT: keyboard -> human action (bindings in CONFIG.controls.keys) ---------------------

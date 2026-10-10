@@ -1,7 +1,7 @@
 'use strict';
 // ============================================================
 // STRATEGY: English strategy -> behaviour, fallback brain, per-model AI brains
-// OWNS:    STRATEGY_PRESETS, strategyToBehaviour (TODO Claude API hook), FALLBACK, aiBehaviour (decide() returning actions)
+// OWNS:    STRATEGY_PRESETS, strategyToBehaviour (TODO Claude API hook), FALLBACK, aiBehaviour (decide() returning actions, incl. attack2 for weapon2)
 // EXPORTS: STRATEGY_PRESETS, strategyToBehaviour, FALLBACK, aiBehaviour
 // READS:   CONFIG, clamp, lerp, rand, pick
 // ============================================================
@@ -115,7 +115,7 @@ const FALLBACK = {
 };
 
 // ---- AI BRAINS: one behaviour profile per Claude model (tuned in CONFIG.ai[model]) ----------
-// decide(state) returns the extended action { drive (screen dir -1..1), jump, attack, dodge, block, dash, brake, mode }.
+// decide(state) returns the extended action { drive (screen dir -1..1), jump, attack, attack2 (build.weapon2), dodge, block, dash, brake, mode }.
 // The brain sees the enemy through a reaction-delay buffer and re-plans every decisionInterval. It uses
 // the exact same action interface (and therefore the same cooldowns and physics) as the keyboard player.
 function aiBehaviour(modelKey) {
@@ -138,7 +138,7 @@ function aiBehaviour(modelKey) {
 
   function think(s, dt) {
     const me = s.me, en = s.enemy, A = s.arena, W = me.weapon;
-    const out = { drive: 0, jump: false, attack: false, dodge: false, block: false, dash: false, brake: false, mode: '' };
+    const out = { drive: 0, jump: false, attack: false, attack2: false, dodge: false, block: false, dash: false, brake: false, mode: '' };
     const toward = Math.sign(s.dx) || me.facing;
     const dist = s.distance + (Math.random() * 2 - 1) * P.aimError;
     const myRange = s.weaponRange, enRange = s.enemyRange;
@@ -147,8 +147,9 @@ function aiBehaviour(modelKey) {
     const roomBack = toward > 0 ? me.x - A.left : A.right - me.x;      // floor behind me (away from enemy)
     const enRoomBack = toward > 0 ? A.right - en.x : en.x - A.left;    // floor behind the enemy
     const impatient = s.stallTime > CONFIG.stallSeconds;
-    const lead = W === 'hammer' ? 10 * P.predict : 2 * P.predict;       // hammer lands ~10 steps after the swing
-    const futureDist = dist - Math.max(-3, s.closing) * lead;
+    const leadOf = w => w === 'hammer' ? 10 * P.predict : 2 * P.predict;   // hammer lands ~10 steps after the swing
+    const futureOf = w => dist - Math.max(-3, s.closing) * leadOf(w);
+    const futureDist = futureOf(W);
     const inRange = s.enemyInFront && futureDist < myRange;
 
     if (me.flipped) { out.attack = ready; out.drive = 0; out.mode = 'RECOVER'; return out; }
@@ -219,6 +220,13 @@ function aiBehaviour(modelKey) {
       if (!out.attack && Math.random() < perSec(P.randomFire, dt)) out.attack = true;
     }
 
+    // ---- second weapon (build.weapon2, e.g. Fable's top hammer): own cooldown, own range + timing.
+    // Same aim rules as the primary, so a flipped or launched enemy gets smashed while the flipper reloads.
+    if (me.weapon2 && me.moves.attack2 <= 0 && !out.block && !out.dodge && s.enemyInFront) {
+      const intoBlock = P.readsBlock && en.blocking && !en.flipped;
+      out.attack2 = !intoBlock && futureOf(me.weapon2) < s.weapon2Range;
+    }
+
     // ---- dash: Opus only commits to punish / ring-out / execute; others dash when engaging
     if (me.moves.dash <= 0 && !out.block && !out.dodge && s.enemyInFront && dist > myRange * 0.8 && dist < myRange + C.dash.reach) {
       const smart = P.readsBlock ? (mode === 'PUNISH' || mode === 'RING-OUT' || mode === 'EXECUTE') && !en.blocking : engaged;
@@ -241,7 +249,7 @@ function aiBehaviour(modelKey) {
     const ps = perceive(s);
     if (mem.plan && s.time < mem.next) {   // between decisions: keep driving/holding, no new one-shot moves
       const p = mem.plan;
-      return { drive: p.drive, block: p.block, brake: p.brake, jump: false, attack: false, dodge: false, dash: false, mode: p.mode };
+      return { drive: p.drive, block: p.block, brake: p.brake, jump: false, attack: false, attack2: false, dodge: false, dash: false, mode: p.mode };
     }
     const dt = P.decisionInterval * rand(0.8, 1.2);
     mem.next = s.time + dt;
