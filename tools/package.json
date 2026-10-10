@@ -1,0 +1,6 @@
+{
+  "name": "robo-olympics-tools",
+  "private": true,
+  "description": "Dev-only test harness for index.html (the game itself has no build step)",
+  "dependencies": { "matter-js": "0.19.0" }
+}
