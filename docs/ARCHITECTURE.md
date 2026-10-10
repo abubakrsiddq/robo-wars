@@ -18,13 +18,13 @@ The table is copied from each file's header block (the headers are the source of
 | 2 | `src/parts.js` | part costs, geometry (builder preview + physics), random builds. Owns: PARTS: cost, geometry, fromCards, randomBuild, randomName; name word lists | `PARTS` | `CONFIG` `pick` |
 | 3 | `src/ai.js` | English strategy -> behaviour, fallback brain, per-model AI brains. Owns: STRATEGY_PRESETS, strategyToBehaviour (TODO Claude API hook), FALLBACK, aiBehaviour (decide() returning actions) | `STRATEGY_PRESETS` `strategyToBehaviour` `FALLBACK` `aiBehaviour` | `CONFIG` `clamp` `lerp` `rand` `pick` |
 | 4 | `src/character.js` | build Matter bodies for a robot; draw robots and their cues. Owns: createRobot (runtime robot fields), robot-local geometry helpers, hammer/flip animation curves, drawRobot, chassis/wheel/spinner/shield/trail drawing | `createRobot` `rectCentre` `localToWorld` `hammerAngle` `flipAngle` `drawRobot` `drawChassisLocal` `drawWheel` `drawSpinner` | `CONFIG` `PARTS` `clamp` `lerp` `Bodies` `Body` `Composite` `Constraint` `Vertices` `ctx` `roundRect` `shade` `outlinedText` `fight` `AUTO` `AUTO_AI` `TAU` `aiBehaviour` `rand` `strategyToBehaviour` |
-| 5 | `src/arena.js` | physics world (floor, walls, pit gaps) + stadium drawing. Owns: createArenaWorld, cached offscreen static layers, drawArena | `createArenaWorld` `drawArena` | `CONFIG` `rand` `Engine` `Bodies` `Composite` `ctx` `fight` `roundRect` `shade` `mulberry32` `outlinedText` `TAU` `pick` |
+| 5 | `src/arena.js` | physics world (floor, walls, pit gaps) + every arena's look (stadium, Taj Mahal, Hampi, Gomateshwara). Owns: createArenaWorld, arenaKey, per-arena art (backdrops, themes, live animation), DPR-aware cached layers, drawArena, drawArenaThumb | `createArenaWorld` `arenaKey` `drawArena` `drawArenaThumb` | `CONFIG` `clamp` `lerp` `Engine` `Bodies` `Composite` `ctx` `DPR` `fight` `roundRect` `mulberry32` `TAU` `pick` |
 | 6 | `src/controls.js` | keyboard input and the single action -> physics path. Owns: INPUT state, humanAction, getAction (human/AI/strategy -> action), cooldown ticking, applyAction (drive/hop/brake/attack/dodge/block/dash) | `INPUT` `IDLE_ACTION` `getAction` `humanAction` `setCd` `tickMoves` `applyAction` `isGrounded` | `CONFIG` `clamp` `Body` `fight` `FALLBACK` `buildState` `fireWeapon` `sparks` `dust` `floatText` `rectCentre` `setAllVelocity` |
 | 7 | `src/combat.js` | weapons, collision damage, win conditions. Owns: fireWeapon, weapon impacts, collision handling, damage/rage/block reduction, checkWin, endFight | `fireWeapon` `setAllVelocity` `selfRight` `flipperImpact` `hammerImpact` `handlePair` `damage` `checkWin` `endFight` | `CONFIG` `clamp` `rand` `Body` `Events` `fight` `AUTO_AI` `autolog` `localToWorld` `rectCentre` `sparks` `dust` `floatText` `setBanner` |
-| 8 | `src/fx.js` | particles, floating text, banners, screen shake and generic canvas helpers. Owns: canvas handle (cv, ctx), particle/text/banner updates and drawing, roundRect/shade/outlinedText/esc/mulberry32 | `cv` `ctx` `TAU` `mulberry32` `esc` `sparks` `dust` `floatText` `setBanner` `updateEffects` `drawParticles` `outlinedText` `roundRect` `shade` | `CONFIG` `clamp` `rand` `fight` `rectCentre` |
+| 8 | `src/fx.js` | particles, floating text, banners, screen shake and generic canvas helpers. Owns: canvas handle (cv, ctx, DPR backing-store scale), particle/text/banner updates and drawing, roundRect/shade/outlinedText/esc/mulberry32 | `cv` `ctx` `DPR` `TAU` `mulberry32` `esc` `sparks` `dust` `floatText` `setBanner` `updateEffects` `drawParticles` `outlinedText` `roundRect` `shade` | `CONFIG` `clamp` `rand` `fight` `rectCentre` |
 | 9 | `src/hud.js` | in-fight HUD, intro countdown, banners, result screen. Owns: drawHUD (health bars, move bar), drawIntro, drawBanner, showResult | `skewPath` `drawHUD` `showResult` | `CONFIG` `clamp` `ctx` `fight` `AUTO` `autoNext` `roundRect` `outlinedText` `esc` `shade` `TAU` |
-| 10 | `src/builder.js` | card-based builder screen, previews, player setup, persistence. Owns: players[], cards, setModel, localStorage save/load, builder panels and previews | `cards` `players` `setModel` `saveChoices` `loadChoices` `buildPanel` `refreshPanel` | `CONFIG` `PARTS` `drawChassisLocal` `drawWheel` `drawSpinner` `roundRect` |
-| 11 | `src/main.js` | per-fight lifecycle, fixed-step loop, state for decide(), render pipeline, wiring, #auto mode. Owns: fight (the live fight object), rafId, AUTO flags, startFight/teardown/backToBuilder, frame/step, buildState, controlRobot, render, DOM button wiring, auto-mode loop | `fight` `AUTO` `AUTO_AI` `STEP` `startFight` `backToBuilder` `buildState` `controlRobot` `render` `autolog` `autoNext` | `CONFIG` `PARTS` `Events` `Composite` `Engine` `performance` `STRATEGY_PRESETS` `pick` `createRobot` `createArenaWorld` `handlePair` `checkWin` `getAction` `applyAction` `tickMoves` `hammerImpact` `INPUT` `IDLE_ACTION` `updateEffects` `setBanner` `showResult` `drawArena` `drawParticles` `drawRobot` `drawHUD` `outlinedText` `ctx` `clamp` `rand` `players` `setModel` `loadChoices` `buildPanel` `refreshPanel` `Body` `isGrounded` |
+| 10 | `src/builder.js` | card-based builder screen, previews, player setup, persistence. Owns: players[], cards, arena choice (getArena/setArena), setModel, localStorage save/load, builder panels, previews, arena picker | `cards` `players` `setModel` `getArena` `setArena` `saveChoices` `loadChoices` `buildPanel` `refreshPanel` `buildArenaPicker` | `CONFIG` `PARTS` `drawChassisLocal` `drawWheel` `drawSpinner` `arenaKey` `drawArenaThumb` |
+| 11 | `src/main.js` | per-fight lifecycle, fixed-step loop, state for decide(), render pipeline, wiring, #auto mode. Owns: fight (the live fight object), rafId, AUTO flags, startFight/teardown/backToBuilder, frame/step, buildState, controlRobot, render, DOM button wiring, auto-mode loop | `fight` `AUTO` `AUTO_AI` `STEP` `startFight` `backToBuilder` `buildState` `controlRobot` `render` `autolog` `autoNext` | `CONFIG` `PARTS` `DPR` `arenaKey` `getArena` `setArena` `buildArenaPicker` `Events` `Composite` `Engine` `performance` `STRATEGY_PRESETS` `pick` `createRobot` `createArenaWorld` `handlePair` `checkWin` `getAction` `applyAction` `tickMoves` `hammerImpact` `INPUT` `IDLE_ACTION` `updateEffects` `setBanner` `showResult` `drawArena` `drawParticles` `drawRobot` `drawHUD` `outlinedText` `ctx` `clamp` `rand` `players` `setModel` `loadChoices` `buildPanel` `refreshPanel` `Body` `isGrounded` |
 
 
 Boundary judgement calls:
@@ -35,6 +35,10 @@ Boundary judgement calls:
 - `getAction` (controller -> action, with the `FALLBACK` try/catch) is in `controls.js`; `buildState` (the `state` for `decide()`) is in `main.js`.
 - `controlRobot` (per-tick timers + weapon animation + `getAction` + `applyAction`) is the orchestration step, so it is in `main.js`.
 - `cv`/`ctx` (the canvas handle) and `esc`, `mulberry32`, `TAU` are in `fx.js`; every drawing file reads `ctx` from there.
+- Canvas resolution: `fx.js` sizes the canvas to `CONFIG.arena * DPR`; `render()` (main.js) calls `ctx.setTransform(DPR, ...)` each frame,
+  so all drawing stays in `CONFIG.arena` units. Arena layers are painted at the same `DPR`.
+- Arenas: `arena.js` owns the art and `arenaKey()`; `builder.js` owns the choice (`getArena/setArena`, saved with the builder
+  localStorage data) and the picker (thumbnails via `drawArenaThumb`); `main.js` BOOT handles `#arena=<key>&fight` (opens the fight directly).
 - `pick` and `rand` are shared helpers in `config.js`. `endFight` (combat.js) calls `autolog` (main.js) when `AUTO_AI` is set.
 
 ## Data contracts
@@ -51,7 +55,8 @@ Everyone else only reads them.
 | `bump`, `landing`, `bigHit`, `rageBelow`, `rageDamageBonus`, `flipKOSeconds`, `stallSeconds`, `fightSeconds` | combat |
 | `hammerAngles` | character (animation) + combat |
 | `slowMo`, `introSeconds` | main (fight loop) |
-| `arena` | arena |
+| `arena` | arena (physics geometry, shared by every arena) |
+| `arenas` (default key, DPR cap, crowd gap, per-arena name/place/accent/theme colours) | arena (builder reads `list` for the picker; fx reads `maxDPR`) |
 | `ai` (per-model brains + builds) | ai |
 | `controls` (keys, hop, brake, attack, dodge, block, dash) | controls |
 | `builder` | builder |
@@ -100,7 +105,9 @@ Human actions come from `humanAction` (keys in `CONFIG.controls.keys`, with an i
 
 ### Fight object (`fight`, main.js)
 `{ engine, robots[2], floorL, floorR, phase:'intro'|'fight'|'ko'|'result', introT, time, clock, stall, koT, slow, winner, method,
-shake, particles[], texts[], banner, last, acc, crowd[] }` plus `layer` (arena cache, arena.js). Physics is a fixed 60 Hz step
+shake, particles[], texts[], banner, last, acc, arena }` plus `flashes[]` (camera flashes, arena.js). `arena` is a
+`CONFIG.arenas.list` key picked by `startFight` (builder choice via `getArena()`; random in `#auto` unless `arena=<key>` is in the hash).
+The arena's static art is cached per arena key inside arena.js (offscreen canvases at `DPR` resolution, reused across fights). Physics is a fixed 60 Hz step
 (`step`); slow-mo only changes `engine.timing.timeScale`.
 
 ## How to work in parallel

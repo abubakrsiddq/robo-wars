@@ -1,9 +1,9 @@
 'use strict';
 // ============================================================
 // BUILDER UI: card-based builder screen, previews, player setup, persistence
-// OWNS:    players[], cards, setModel, localStorage save/load, builder panels and previews
-// EXPORTS: cards, players, setModel, saveChoices, loadChoices, buildPanel, refreshPanel
-// READS:   CONFIG, PARTS, drawChassisLocal, drawWheel, drawSpinner, roundRect
+// OWNS:    players[], cards, arena choice (getArena/setArena), setModel, localStorage save/load, builder panels, previews, arena picker
+// EXPORTS: cards, players, setModel, getArena, setArena, saveChoices, loadChoices, buildPanel, refreshPanel, buildArenaPicker
+// READS:   CONFIG, PARTS, drawChassisLocal, drawWheel, drawSpinner, arenaKey, drawArenaThumb
 // ============================================================
 // ============================================================
 // controller: 'human' (keyboard) | 'ai' (CONFIG.ai[model]) | 'strategy' (English text, used by #auto)
@@ -23,8 +23,13 @@ function setModel(model) {
   p.model = model; p.name = m.label; p.color = m.color; p.build = Object.assign({}, m.build);
 }
 
+// arena choice (a CONFIG.arenas.list key); main.js reads it when a fight starts
+let arenaChoice = CONFIG.arenas.default;
+function getArena() { return arenaChoice; }
+function setArena(key) { if (CONFIG.arenas.list[key]) arenaChoice = key; }
+
 function saveChoices() {
-  try { localStorage.setItem(CONFIG.builder.storageKey, JSON.stringify({ name: players[0].name, cards, model: players[1].model })); } catch (e) {}
+  try { localStorage.setItem(CONFIG.builder.storageKey, JSON.stringify({ name: players[0].name, cards, model: players[1].model, arena: arenaChoice })); } catch (e) {}
 }
 function loadChoices() {
   try {
@@ -32,6 +37,7 @@ function loadChoices() {
     if (typeof d.name === 'string' && d.name) players[0].name = d.name.slice(0, 18);
     ['body', 'attack', 'defence'].forEach(k => { if (d.cards && CONFIG.builder[k][d.cards[k]]) cards[k] = d.cards[k]; });
     if (CONFIG.ai[d.model]) players[1].model = d.model;
+    setArena(d.arena);
   } catch (e) {}
   players[0].build = PARTS.fromCards(cards);
 }
@@ -123,4 +129,22 @@ function drawPreview(cv, p, k) {
   g.wheels.forEach(w => drawWheel(ctx, w.x, w.y, g.r, 0));
   if (g.spinner) drawSpinner(ctx, g.spinner.x, g.spinner.y, g.spinner.r, 0.3, 0);
   ctx.restore();
+}
+
+// ---- arena picker: a row of cards with a thumbnail rendered from each arena's backdrop ----
+function buildArenaPicker() {
+  const el = document.getElementById('arenaPick'); if (!el) return;
+  el.innerHTML = '<span class="lbl">Arena</span><div class="arenas">' + Object.entries(CONFIG.arenas.list).map(([k, a]) =>
+    `<button class="pick arena-opt" data-arena="${k}" style="--c:${a.accent}"><canvas width="240" height="120"></canvas>` +
+    `<b>${a.name}</b><small>${a.place}</small></button>`).join('') + '</div>';
+  el.querySelectorAll('.arena-opt').forEach(b => drawArenaThumb(b.querySelector('canvas'), b.dataset.arena));
+  el.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('button.arena-opt'); if (!b) return;
+    setArena(b.dataset.arena); refreshArenaPicker(); saveChoices();
+  });
+  refreshArenaPicker();
+}
+function refreshArenaPicker() {
+  const el = document.getElementById('arenaPick'), k = arenaKey(arenaChoice); if (!el) return;
+  el.querySelectorAll('.arena-opt').forEach(b => b.classList.toggle('sel', b.dataset.arena === k));
 }

@@ -53,13 +53,17 @@ function drawHUD() {
       ctx.fillStyle = '#10131e'; ctx.font = '900 11px "Segoe UI", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('YOU', bx + bw / 2, by + 9); ctx.textAlign = al; ctx.textBaseline = 'top';
     }
-    ctx.font = '600 11px "Segoe UI", sans-serif'; ctx.fillStyle = '#9aa6c4'; ctx.textAlign = al;
+    // info lines are outlined so they stay readable over bright arena skies (Taj Mahal, Hampi, Gomateshwara)
+    ctx.font = '700 11px "Segoe UI", sans-serif'; ctx.textAlign = al; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)';
     let info = `${CONFIG.weapons[r.build.weapon].name.toUpperCase()} · ${Math.ceil(r.hp)}/${r.maxHp} HP${r.rage ? ' · RAGE' : ''}`;
     if (!isAI && r.mode) info += ' · ' + r.mode;
-    ctx.fillText(info, edge, y + H + 31);
+    ctx.strokeText(info, edge, y + H + 31);
+    ctx.fillStyle = '#e4eaf7'; ctx.fillText(info, edge, y + H + 31);
     if (isAI && r.mode) {   // subtle AI "thought"
-      ctx.font = 'italic 600 11px "Segoe UI", sans-serif'; ctx.fillStyle = 'rgba(190,205,235,.6)';
-      ctx.fillText('thinking: ' + String(r.mode).toUpperCase(), edge, y + H + 46);
+      const th = 'thinking: ' + String(r.mode).toUpperCase();
+      ctx.font = 'italic 600 11px "Segoe UI", sans-serif'; ctx.strokeStyle = 'rgba(0,0,0,.6)';
+      ctx.strokeText(th, edge, y + H + 46);
+      ctx.fillStyle = 'rgba(205,215,240,.85)'; ctx.fillText(th, edge, y + H + 46);
     }
   });
   // timer: ring progress + big number

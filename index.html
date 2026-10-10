@@ -52,6 +52,11 @@ canvas.preview{width:100%;height:auto;background:radial-gradient(ellipse at 50% 
 .keys h3{margin:0 0 2px;font-size:11px;letter-spacing:2px;color:var(--text);text-transform:uppercase}
 kbd{display:inline-block;min-width:22px;text-align:center;background:#232a40;border:1px solid #3a4468;border-bottom-width:3px;border-radius:5px;padding:0 5px;color:var(--text);font:700 11px monospace;margin-right:2px}
 #randomMatchBtn{display:none}
+#arenaPick{--c:var(--gold);grid-column:1/-1;background:linear-gradient(180deg,#171c2c,#10131e);border:1px solid #232a40;border-radius:14px;padding:10px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.arenas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,220px));justify-content:center;gap:10px}
+.arena-opt{padding:6px}
+.arena-opt canvas{width:100%;height:auto;aspect-ratio:2/1;border-radius:6px;display:block;margin-bottom:3px;background:#05060a}
+.arena-opt small{min-height:0}
 
 /* ---- FIGHT / RESULT ---- */
 #fightScreen{display:none;padding:12px}
@@ -101,12 +106,13 @@ kbd{display:inline-block;min-width:22px;text-align:center;background:#232a40;bor
     <button id="randomMatchBtn">Random</button>
   </div>
   <div class="panel p2" id="panel1"></div>
+  <div id="arenaPick"></div>
 </div>
 
 <div id="fightScreen">
   <canvas id="arena" width="1200" height="600"></canvas>
   <div class="fight-bar">
-    <span>Win by KO · Flip (5 s stuck) · Pit · or HP% at time-out</span>
+    <span><b id="arenaName"></b> · Win by KO · Flip (5 s stuck) · Pit · or HP% at time-out</span>
     <button class="small-btn" id="abortBtn">✕ Back to Builder</button>
   </div>
 </div>
