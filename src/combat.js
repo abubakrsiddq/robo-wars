@@ -9,11 +9,11 @@ function fireWeapon(r, en) {
   const wp = CONFIG.weapons[r.build.weapon];
   switch (r.build.weapon) {
     case 'hammer':
-      r.hammerT = 0; r.cooldown = wp.cooldown / r.overdrive;
+      r.hammerT = 0; r.cooldown = Math.max(wp.cooldown / r.overdrive, animLen(wp));
       if (r.flipped) selfRight(r, 0.75);
       break;
     case 'flipper':
-      r.flipT = 0; r.cooldown = wp.cooldown / r.overdrive;
+      r.flipT = 0; r.cooldown = Math.max(wp.cooldown / r.overdrive, animLen(wp));
       if (r.flipped) selfRight(r, 1); else flipperImpact(r, en);
       break;
     case 'ram':
@@ -28,6 +28,9 @@ function fireWeapon(r, en) {
   }
   r.moves.attack.max = Math.max(r.cooldown, 0.01);
 }
+
+// total swing time of a weapon animation: refire is blocked until it ends
+function animLen(wp) { return wp.anim.strike + wp.anim.hold + wp.anim.back; }
 
 function setAllVelocity(r, fn) { r.all.forEach(bd => Body.setVelocity(bd, fn(bd.velocity))); }
 
@@ -46,7 +49,9 @@ function flipperImpact(r, en) {
   const reach = r.g.w / 2 + wp.reach + en.g.w / 2 + 10;
   if (dx <= 0 || dx > reach || Math.abs(dy) > 80) return;
   const k = clamp(Math.sqrt(5.5 / en.totalMass), 0.6, 1.25);
-  const brace = en.blocking ? CONFIG.controls.block.launchMul : 1;   // a braced robot barely leaves the ground
+  let brace = en.blocking ? CONFIG.controls.block.launchMul : 1;   // a braced robot barely leaves the ground
+  // anti juggle-lock: a recently flipped target only gets a small shove
+  if (fight.clock - (en.lastFlipped ?? -99) < wp.repeatGuard) brace *= wp.repeatLaunchMul; else en.lastFlipped = fight.clock;  // cfg-ok
   setAllVelocity(en, v => ({ x: r.f * wp.push * (en.blocking ? CONFIG.controls.block.knockMul : 1), y: -wp.launch * k * brace }));
   Body.setAngularVelocity(en.body, r.f * wp.spin * brace);
   const tip = localToWorld(r, r.g.wedge[2].x, r.g.wedge[2].y);

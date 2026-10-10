@@ -115,7 +115,7 @@ function buildState(r, en) {
     health: x.hp, maxHealth: x.maxHp, hpPct: x.hp / x.maxHp, facing: x.f, flipped: x.flipped, rage: x.rage, weapon: x.build.weapon,
     grounded: isGrounded(x), blocking: x.blocking, blockHold: x.blockHold, dashT: x.dashT, dodgeT: x.dodgeT,
     spinFrac: x.spinner ? x.spin / CONFIG.weapons.spinner.spinMax : 0,
-    attacking: (x.hammerT >= 0 && x.hammerT < 0.16) || x.boostT > 0 || x.dashT > 0 || x.revT > 0,
+    attacking: (x.hammerT >= 0 && x.hammerT < CONFIG.weapons.hammer.anim.strike) || x.boostT > 0 || x.dashT > 0 || x.revT > 0,
     moves: { attack: x.moves.attack.cd, dodge: x.moves.dodge.cd, block: x.moves.block.cd, dash: x.moves.dash.cd },
   });
   const me = snap(r), enemy = snap(en), dx = enemy.x - me.x;
@@ -142,11 +142,11 @@ function controlRobot(r, en, gdt) {
     Body.setAngularVelocity(r.spinner, -r.f * r.spin);   // front of drum moves upward -> launches
   }
   if (r.hammerT >= 0) {
-    const prev = r.hammerT; r.hammerT += gdt;
-    if (prev < 0.16 && r.hammerT >= 0.16) hammerImpact(r, en);
-    if (r.hammerT > 0.8) r.hammerT = -1;
+    const hA = wp.anim, prev = r.hammerT; r.hammerT += gdt;
+    if (prev < hA.strike && r.hammerT >= hA.strike) hammerImpact(r, en);
+    if (r.hammerT > hA.strike + hA.hold + hA.back) r.hammerT = -1;
   }
-  if (r.flipT >= 0) { r.flipT += gdt; if (r.flipT > 0.5) r.flipT = -1; }
+  if (r.flipT >= 0) { r.flipT += gdt; const fA = wp.anim; if (r.flipT > fA.strike + fA.hold + fA.back) r.flipT = -1; }
   tickMoves(r, gdt);
 
   const act = F.phase === 'fight' ? getAction(r, en) : IDLE_ACTION;

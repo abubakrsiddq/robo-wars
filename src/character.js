@@ -79,17 +79,18 @@ function localToWorld(r, lx, ly) {
   return { x: c.x + lx * co - ly * si, y: c.y + lx * si + ly * co };
 }
 function hammerAngle(t) {
-  const { rest, strike } = CONFIG.hammerAngles;
+  const { rest, strike } = CONFIG.hammerAngles, A = CONFIG.weapons.hammer.anim;
   if (t < 0) return rest;
-  if (t < 0.16) return lerp(rest, strike, (t / 0.16) ** 2);
-  if (t < 0.3) return strike;
-  return lerp(strike, rest, Math.min(1, (t - 0.3) / 0.5));
+  if (t < A.strike) return lerp(rest, strike, (t / A.strike) ** 2);
+  if (t < A.strike + A.hold) return strike;
+  return lerp(strike, rest, Math.min(1, (t - A.strike - A.hold) / A.back));
 }
 function flipAngle(t) {
+  const A = CONFIG.weapons.flipper.anim;
   if (t < 0) return 0;
-  if (t < 0.08) return t / 0.08;
-  if (t < 0.2) return 1;
-  return lerp(1, 0, Math.min(1, (t - 0.2) / 0.3));
+  if (t < A.strike) return t / A.strike;
+  if (t < A.strike + A.hold) return 1;
+  return lerp(1, 0, Math.min(1, (t - A.strike - A.hold) / A.back));
 }
 
 // ---- robots ----

@@ -40,9 +40,13 @@ const CONFIG = {
   },
   weapons: {
     spinner: { name: 'Spinner', cost: 25, desc: 'Big damage on contact', radius: 14, spinMax: 0.9, spinUp: 0.025, base: 3, mul: 0.95, hitCooldown: 0.25, knock: 2.2, reach: 24 },
-    hammer:  { name: 'Hammer',  cost: 25, desc: 'Overhead strike',       cooldown: 1.3, damage: 16, flippedBonus: 1.6, reach: 40 },
-    flipper: { name: 'Flipper', cost: 20, desc: 'Launches enemy up',     cooldown: 2.6, damage: 5, launch: 10.5, push: 1.5, spin: 0.24, reach: 48 },
-    ram:     { name: 'Ram',     cost: 10, desc: 'Speed = damage',        mul: 3.4, minSpeed: 2, cooldown: 3, boost: 1.6, boostTime: 0.6, reach: 34 },
+    hammer:  { name: 'Hammer',  cost: 25, desc: 'Overhead strike',       cooldown: 0.5, damage: 8, flippedBonus: 1.6, reach: 40,
+               anim: { strike: 0.1, hold: 0.1, back: 0.25 } }   // swing timings (s); strike+hold+back must be <= minCooldown
+,
+    flipper: { name: 'Flipper', cost: 20, desc: 'Launches enemy up',     cooldown: 0.5, damage: 3, launch: 10.5, push: 1.5, spin: 0.24, reach: 48,
+               repeatGuard: 1.2, repeatLaunchMul: 0.25,        // a target flipped within this many s only gets a small shove (no juggle-lock)
+               anim: { strike: 0.05, hold: 0.1, back: 0.25 } },
+    ram:     { name: 'Ram',     cost: 10, desc: 'Speed = damage',        mul: 3.4, minSpeed: 2, cooldown: 0.5, boost: 1.3, boostTime: 0.3, reach: 34 },
   },
   armour: { cost: 10, max: 2, reduction: 0.15, mass: 0.8 },
   bump: { minSpeed: 5, mul: 0.8 },
@@ -88,7 +92,7 @@ const CONFIG = {
             attack: ['KeyW'], dodge: ['KeyA'], block: ['KeyS'], dash: ['KeyD'] },
     hop:    { velocity: 5.6, cooldown: 0.6, groundTol: 4 },          // ~56 px: still too low to leapfrog
     brake:  { factor: 0.55 },                                         // wheel spin kept per tick while braking
-    attack: { revCooldown: 2.4, revTime: 0.7, revDamageMul: 1.4 },     // spinner W = rev burst
+    attack: { revCooldown: 0.5, revTime: 0.3, revDamageMul: 1.15 },     // spinner W = rev burst
     dodge:  { cooldown: 1.2, time: 0.32, speed: 10, lift: 1.5, reduction: 0.6, spinMul: 1.6, safeRoom: 130 },
     block:  { maxHold: 1.6, cooldown: 2.2, releaseCooldown: 0.35, regenSeconds: 1.8, minStamina: 0.25,
               reduction: 0.65, driveMul: 0.35, launchMul: 0.3, knockMul: 0.4, downforce: 0.3, spinDamp: 0.8 },
