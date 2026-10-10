@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Robo Olympics</title>
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <style>
@@ -50,7 +51,7 @@ textarea{width:100%;min-height:64px;background:#0b0e17;border:1px solid #2a3150;
 .ready{width:100%;margin-top:10px;padding:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;border-radius:10px;border:2px solid var(--c);background:transparent;color:var(--c)}
 .ready.on{background:var(--c);color:#fff}
 .ready:disabled{opacity:.4;cursor:not-allowed}
-.center{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:140px;text-align:center}
+.center{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:90px;text-align:center}
 .vs{font-size:60px;font-weight:900;font-style:italic;color:var(--gold);text-shadow:0 0 24px rgba(255,210,63,.5)}
 #fightBtn{padding:16px 22px;font-size:22px;font-weight:900;letter-spacing:2px;border:none;border-radius:12px;background:linear-gradient(180deg,#ffd23f,#ff8a1f);color:#1a1000;text-transform:uppercase;box-shadow:0 6px 0 #a34d00}
 #fightBtn:disabled{filter:grayscale(1);opacity:.35;cursor:not-allowed;box-shadow:none}
@@ -71,11 +72,29 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 .btns button{padding:12px 20px;border-radius:10px;border:none;font-weight:800;letter-spacing:1px;text-transform:uppercase}
 #rematchBtn{background:linear-gradient(180deg,#ffd23f,#ff8a1f);color:#1a1000}
 #backBtn{background:#232a40;color:var(--text)}
+.heroes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 2px}
+.hero{background:#0d111c;border:1px solid #262e48;color:var(--text);border-radius:8px;padding:6px 4px;font-size:11px;font-weight:700;letter-spacing:.5px;text-align:center;border-bottom:3px solid var(--hc)}
+.hero:hover{border-color:var(--hc)}
+.hero.sel{background:color-mix(in srgb,var(--hc) 22%,#0d111c);box-shadow:0 0 0 1px var(--hc) inset}
+.hero small{display:block;font-weight:400;color:var(--muted);font-size:9px}
+.modes{display:flex;gap:6px}
+.mode{flex:1;font-size:12px;padding:7px 4px;border-radius:8px;border:1px solid #333c5c;background:#1b2135;color:var(--text);font-weight:700}
+.mode.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+#claudePanel{--c:#d97757;display:none}
+.tier{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;background:#0d111c;border:1px solid #262e48;color:var(--text);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.tier:hover{border-color:var(--c)}
+.tier.sel{border-color:var(--c);background:color-mix(in srgb,var(--c) 18%,#0d111c);box-shadow:0 0 0 1px var(--c) inset}
+.tier b{font-size:15px}.tier small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.tier .st{color:var(--gold);letter-spacing:2px;font-size:13px;white-space:nowrap}
+.tier .rec{font-size:10px;color:var(--muted);display:block;text-align:right;letter-spacing:0}
+.claude-info{font-size:12px;color:#cdd5ea;background:#0b0e17;border:1px dashed #3a2a24;border-radius:8px;padding:8px 10px;line-height:1.6;margin-top:6px}
+#soundBtn{position:fixed;top:10px;right:12px;z-index:5}
 #autolog{position:fixed;bottom:0;left:0;font-size:11px;color:#6f7;margin:0;padding:4px;max-height:40vh;overflow:auto;pointer-events:none}
 </style>
 </head>
 <body>
 
+<button class="small-btn" id="soundBtn" title="Toggle sound">🔊 Sound on</button>
 <header>
   <h1>Robo Olympics</h1>
   <p>Build it. Brief it. Watch it brawl.</p>
@@ -84,12 +103,18 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 <div id="builderScreen">
   <div class="panel p1" id="panel0"></div>
   <div class="center">
+    <div class="modes" id="modes"><button class="mode" data-m="claude">You vs Claude</button><button class="mode" data-m="2p">2 players</button></div>
     <div class="vs">VS</div>
     <button id="fightBtn" disabled>Fight!</button>
     <div class="hint" id="fightHint">Both players must be Ready</div>
     <button class="small-btn" id="randomMatchBtn">🎲 Random Match</button>
   </div>
   <div class="panel p2" id="panel1"></div>
+  <div class="panel p2" id="claudePanel">
+    <h2>Claude: pick your opponent</h2>
+    <div id="tiers"></div>
+    <div class="claude-info" id="claudeInfo"></div>
+  </div>
 </div>
 
 <div id="fightScreen">
@@ -310,16 +335,293 @@ const FALLBACK = {
   },
 };
 
+
+// ============================================================
+// HEROES: themed robot skins + preset builds (original designs, inspired by Indian screen heroes)
+// ============================================================
+const HEROES = {
+  chakra: { name: 'Chakra-Bot', tag: 'Spin master', color: '#d62828', accent: '#ffd23f', emblem: 'spiral', crest: 'crest',
+    build: { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 1 },
+    strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.' },
+  kavach: { name: 'Kavach-X', tag: 'Fast phantom', color: '#7b2fbf', accent: '#5ee7ff', emblem: 'core', crest: 'mask',
+    build: { chassis: 'light', wheels: 'small', weapon: 'ram', armour: 0 },
+    strategy: 'Bait and juke at 200px, finish them off when they are weak. Avoid the edge.' },
+  vayu: { name: 'Vayu-Mace', tag: 'Sky smasher', color: '#e8791c', accent: '#ffe08a', emblem: 'core', crest: 'ears',
+    build: { chassis: 'medium', wheels: 'large', weapon: 'hammer', armour: 2 },
+    strategy: 'Patient. Stay back until they are flipped, then smash them.' },
+  raja: { name: 'Raja-Steel', tag: 'Iron king', color: '#8d97a8', accent: '#ffcf5a', emblem: 'bands', crest: 'crown',
+    build: { chassis: 'heavy', wheels: 'large', weapon: 'flipper', armour: 0 },
+    strategy: 'Patient. Wait until they get close, then flip them. Push them into the pit.' },
+  modi: { name: 'Narendra Modi', tag: 'The PM', color: '#ff9933', accent: '#ffffff', emblem: 'core', crest: 'crown', face: 'beard',
+    build: { chassis: 'heavy', wheels: 'large', weapon: 'hammer', armour: 1 },
+    strategy: 'Patient. Stay strong, attack when they get close, and avoid the edge.' },
+  abhijit: { name: 'Abhijit Dipke', tag: 'Build-day boss', color: '#13a89e', accent: '#ffe066', emblem: 'spiral', crest: 'crest', face: 'specs',
+    build: { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 1 },
+    strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.' },
+};
+function applyHero(p, key) {
+  const h = HEROES[key]; p.hero = key;
+  p.name = h.name; p.build = { ...h.build }; p.strategy = h.strategy; p.ready = false;
+}
+// Both players picking the same hero: P2 gets a recoloured version so the HUD stays readable
+function heroSkin(p) {
+  if (p.claude) return { ...CLAUDE_SKIN, name: p.name };
+  if (!p.hero) return null;
+  const h = HEROES[p.hero], clash = players.some(o => o !== p && o.hero === p.hero) && p.id === 1;
+  return { ...h, color: clash ? shade(h.color, 0.35) : h.color };
+}
+
+// ============================================================
+// SOUND: tiny WebAudio synth, no audio files
+// ============================================================
+const SFX = {
+  ac: null, on: true,
+  init() { if (!this.ac) { try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.on = false; } } if (this.ac && this.ac.state === 'suspended') this.ac.resume(); },
+  tone(freq, dur, type, vol, slide) {
+    if (!this.on || !this.ac) return;
+    const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type || 'square'; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, slide), t + dur);
+    g.gain.setValueAtTime(vol || 0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(this.ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  },
+  noise(dur, vol) {
+    if (!this.on || !this.ac) return;
+    const n = Math.floor(this.ac.sampleRate * dur), buf = this.ac.createBuffer(1, n, this.ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = this.ac.createBufferSource(), g = this.ac.createGain();
+    src.buffer = buf; g.gain.value = vol || 0.2; src.connect(g); g.connect(this.ac.destination); src.start();
+  },
+  hit(d) { const big = clamp(d / 30, 0.2, 1); this.noise(0.08 + big * 0.12, 0.12 + big * 0.2); this.tone(180 - big * 90, 0.12, 'sawtooth', 0.1 + big * 0.1, 60); },
+  bell() { this.tone(880, 0.6, 'sine', 0.2); this.tone(1320, 0.5, 'sine', 0.1); },
+  rage() { this.tone(120, 0.5, 'sawtooth', 0.18, 480); },
+  ko() { this.noise(0.5, 0.3); this.tone(220, 0.9, 'sawtooth', 0.2, 40); },
+  fall() { this.tone(500, 0.8, 'sine', 0.15, 60); },
+  toggle() { this.on = !this.on; if (this.on) this.init(); document.getElementById('soundBtn').textContent = this.on ? '🔊 Sound on' : '🔇 Sound off'; },
+};
+
+
+// ============================================================
+// INPUT: you fight your character BY HAND. Claude's character is auto.
+//   You vs Claude:  arrows move, Up jumps, Space attacks.
+//   2 players:      P1 = A/D move, W jump, Space attack · P2 = arrows + Enter.
+// ============================================================
+const KEYS = {};
+const CONTROL_CODES = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'Enter']);
+window.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea') return;        // never hijack typing in the builder
+  KEYS[e.code] = true;
+  if (CONTROL_CODES.has(e.code) && fight) e.preventDefault(); // stop page scroll only during a fight
+});
+window.addEventListener('keyup', e => { KEYS[e.code] = false; });
+window.addEventListener('blur', () => { for (const k in KEYS) KEYS[k] = false; });
+// Every fighter has a 3-move set. Solo (vs Claude) binds them to A / S / D; in 2-player each
+// human gets a single attack key (shared keyboard). Arrows move, W or Up jumps.
+const HUMAN_KEYS = {
+  solo: { left: ['ArrowLeft'], right: ['ArrowRight'], jump: ['ArrowUp', 'KeyW'],
+          attacks: [{ k: 'KeyA', kind: 'jab' }, { k: 'KeyS', kind: 'heavy' }, { k: 'KeyD', kind: 'special' }] },
+  p1:   { left: ['KeyA'],      right: ['KeyD'],       jump: ['KeyW'],
+          attacks: [{ k: 'Space', kind: 'heavy' }, { k: 'KeyS', kind: 'special' }] },
+  p2:   { left: ['ArrowLeft'], right: ['ArrowRight'], jump: ['ArrowUp'],
+          attacks: [{ k: 'Enter', kind: 'heavy' }, { k: 'ShiftRight', kind: 'special' }] },
+};
+let exhibition = false;                                     // Random Match = both fighters auto (hands-off show)
+const anyKey = codes => codes.some(k => KEYS[k]);
+function controlMapFor(p) { return mode === 'claude' ? HUMAN_KEYS.solo : (p.id === 0 ? HUMAN_KEYS.p1 : HUMAN_KEYS.p2); }
+function readHumanInput(r, en) {
+  const c = r.controls;
+  const worldDir = (anyKey(c.right) ? 1 : 0) - (anyKey(c.left) ? 1 : 0);
+  if (anyKey(c.jump)) tryJump(r);
+  for (const a of c.attacks) if (KEYS[a.k]) doAttack(r, en, a.kind);
+  const label = (r.atkAnim && r.atkAnim.kind.toUpperCase()) || (worldDir ? 'YOU' : 'READY');
+  return { drive: worldDir * r.f, fire: false, mode: label };   // attacks handled directly, not via fireWeapon
+}
+function tryJump(r) {
+  if (r.jumpCd > 0 || !r.grounded) return;
+  r.jumpCd = 0.55; r.grounded = false;
+  setAllVelocity(r, v => ({ x: v.x, y: -8.5 }));
+}
+
+// ---- Melee moveset (what the attack buttons do) ----
+const ATTACKS = {
+  jab:     { reach: 66,  dmg: 6,  knock: 3,  up: 0,  cd: 0.32, dur: 0.16, self: 0.6 },
+  heavy:   { reach: 86,  dmg: 15, knock: 8,  up: 2,  cd: 0.85, dur: 0.30, self: 1.4 },
+  special: { reach: 108, dmg: 22, knock: 13, up: 7,  cd: 1.7,  dur: 0.42, self: 0.4 },
+};
+const SPECIAL_LABEL = { spinner: 'SPIN BURST', hammer: 'SMASH', flipper: 'LAUNCH', ram: 'CHARGE' };
+// Claude throws the SAME punches you do. Tiers differ by how often/accurately they attack
+// (their reaction cadence + mistake rate), so higher models are genuinely tougher — not unfair.
+function aiAttack(r, en) {
+  if ((r.atkCd || 0) > 0) return;
+  const front = (en.body.position.x - r.body.position.x) * r.f;
+  if (front <= 0) return;                                  // only swing toward the enemy
+  const dist = Math.abs(en.body.position.x - r.body.position.x);
+  const kind = dist < 66 ? 'jab' : dist < 92 ? 'heavy' : dist < 116 ? 'special' : null;
+  if (kind) doAttack(r, en, kind);
+}
+
+function doAttack(r, en, kind) {
+  if (!fight || fight.phase !== 'fight' || (r.atkCd || 0) > 0) return;
+  const A = ATTACKS[kind];
+  r.atkCd = A.cd; r.atkAnim = { kind, t: 0, dur: A.dur };
+  SFX.tone(kind === 'jab' ? 300 : kind === 'heavy' ? 200 : 150, 0.1, 'square', 0.08, 90);   // swing whoosh
+  const spec = kind === 'special';
+  const up = spec && r.build.weapon === 'flipper' ? 13 : A.up;
+  const label = spec ? (SPECIAL_LABEL[r.build.weapon] || 'SPECIAL') : (kind === 'heavy' ? 'HEAVY' : '');
+  const col = kind === 'jab' ? '#ffffff' : kind === 'heavy' ? '#ffd23f' : '#ff8a1f';
+  const front = (en.body.position.x - r.body.position.x) * r.f;
+  const dist = Math.abs(en.body.position.x - r.body.position.x);
+  const dy = Math.abs(en.body.position.y - r.body.position.y);
+  setAllVelocity(r, v => ({ x: v.x + r.f * A.self, y: v.y }));                                 // step into the hit
+  if (spec && r.build.weapon === 'ram') r.boostT = CONFIG.weapons.ram.boostTime;               // ram special = dash
+  if (front > 0 && dist < r.g.w / 2 + A.reach + en.g.w / 2 && dy < 74) {
+    const hx = r.body.position.x + r.f * (r.g.w / 2 + 16), hy = r.body.position.y - 6;
+    damage(en, A.dmg, r, hx, hy);                                                              // handles sparks/sound/KO/rage
+    setAllVelocity(en, v => ({ x: v.x + r.f * A.knock, y: v.y - up }));
+    if (label) floatText(en.body.position.x, en.body.position.y - 72, label, col, 22);
+  } else {
+    sparks(r.body.position.x + r.f * (r.g.w / 2 + 10), r.body.position.y - 4, 3, col);         // whiff
+  }
+}
+
+// ============================================================
+// CLAUDE OPPONENT: you vs Claude. Difficulty = which Claude model you face.
+// Stronger models (1) pick better builds, (2) counter-pick YOUR build, (3) write sharper
+// strategies, and (4) react faster with fewer mistakes. Everything is local; no API key needed.
+// ============================================================
+const TIERS = {
+  haiku:  { label: 'Haiku',  stars: 1, blurb: 'Quick but careless. Builds at random and makes mistakes.', delay: 0.60, noise: 0.34 },
+  sonnet: { label: 'Sonnet', stars: 2, blurb: 'Solid all-rounder. Good build, ignores yours.',            delay: 0.34, noise: 0.15 },
+  opus:   { label: 'Opus',   stars: 3, blurb: 'Reads your weapon and counter-picks it.',                  delay: 0.22, noise: 0.10 },
+  fable:  { label: 'Fable',  stars: 4, blurb: 'Checks every build. Sharp, but still beatable by a human.', delay: 0.15, noise: 0.07 },
+};
+const CLAUDE_SKIN = { color: '#d97757', accent: '#fff1e6', emblem: 'core', crest: 'mask' };
+const BEATS = { spinner: 'hammer', hammer: 'ram', ram: 'flipper', flipper: 'spinner' };   // the counter cycle from the game plan
+const WEAPON_POWER = { spinner: 1.0, hammer: 0.8, flipper: 0.8, ram: 0.7 };
+let mode = 'claude', tier = 'sonnet';
+
+function allLegalBuilds() {
+  const out = [];
+  for (const chassis in CONFIG.chassis) for (const wheels in CONFIG.wheels) for (const weapon in CONFIG.weapons)
+    for (let armour = 0; armour <= CONFIG.armour.max; armour++) {
+      const b = { chassis, wheels, weapon, armour };
+      if (PARTS.cost(b) <= CONFIG.budget) out.push(b);
+    }
+  return out;
+}
+function buildScore(b) {
+  const ch = CONFIG.chassis[b.chassis], wh = CONFIG.wheels[b.wheels];
+  const ehp = ch.hp / (1 - CONFIG.armour.reduction * b.armour);
+  return ehp / 100 + ch.speed * PARTS.overdrive(b) * 0.6 + WEAPON_POWER[b.weapon] + (b.wheels === 'large' ? 0.2 : 0);
+}
+function counterScore(mine, theirs) { return BEATS[mine] === theirs ? 1 : BEATS[theirs] === mine ? -1 : 0; }
+
+function claudeStrategy(t, b, foe) {
+  if (t === 'haiku') return 'Aggressive! Rush them nonstop. Reckless.';
+  const w = b.weapon;
+  if (t === 'sonnet') return w === 'spinner' || w === 'ram' ? 'Aggressive. Charge and attack nonstop. Retreat when low.'
+                                                           : 'Patient. Wait until they get close, then attack. Retreat when low.';
+  // opus / fable: tailored to the weapon and to what you built
+  const light = foe && foe.chassis === 'light';
+  if (w === 'spinner') return 'Aggressive. Charge and attack nonstop. Avoid the edge. Retreat at 25%.';
+  if (w === 'ram')     return 'Charge and push them into the pit. Avoid the edge. Retreat at 25%.';
+  if (w === 'hammer')  return 'Patient. Keep distance and wait. Attack when they get close, smash them when they are flipped. Avoid the edge.';
+  return light ? 'Patient. Wait until they get close, then flip them. Push them into the pit. Retreat at 30%.'
+               : 'Patient. Wait until they get close, then flip them. Avoid the edge. Retreat at 30%.';
+}
+
+// Returns { build, strategy, why } for Claude at the chosen tier, given the human's build
+function claudePick(t, foe, foePlayer) {
+  const legal = allLegalBuilds();
+  let build, why;
+  if (t === 'haiku') {
+    build = pick(legal); why = 'picked parts at random';
+  } else if (t === 'sonnet') {
+    const sample = Array.from({ length: 5 }, () => pick(legal));
+    build = sample.sort((a, b) => buildScore(b) - buildScore(a))[0]; why = 'picked a solid build, did not look at yours';
+  } else {
+    const k = t === 'opus' ? 1.5 : 2.5;
+    const scored = legal.map(b => ({ b, v: buildScore(b) + k * counterScore(b.weapon, foe.weapon) +
+                                        (t === 'fable' ? 0.3 * (CONFIG.chassis[b.chassis].mass >= CONFIG.chassis[foe.chassis].mass) : 0) }))
+                        .sort((x, y) => y.v - x.v);
+    build = (t === 'opus' ? pick(scored.slice(0, 3)) : scored[0]).b;
+    const c = counterScore(build.weapon, foe.weapon);
+    if (t === 'fable' && foePlayer) {
+      // one candidate per weapon x chassis from the heuristic ranking, then test each in a simulated fight
+      const seen = new Set(), cands = scored.filter(x => { const k = x.b.weapon + x.b.chassis + x.b.wheels; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 12);
+      let best = null;
+      cands.forEach(x => { const sc = simulateBuild(x.b, foePlayer); if (!best || sc > best.sc) best = { b: x.b, sc }; });
+      build = best.b;
+      return { build, strategy: claudeStrategy(t, build, foe), why: `ran ${cands.length} practice fights against your robot and kept the ${build.weapon} build that won best` };
+    }
+    why = c > 0 ? `saw your ${foe.weapon} and brought a ${build.weapon} to counter it` : `saw your ${foe.weapon}; ${build.weapon} was the best match-up available`;
+  }
+  return { build, strategy: claudeStrategy(t, build, foe), why };
+}
+
+// Fable only: fast-forward a full fight (no drawing, no sound) to see how a candidate build does against YOUR real robot
+let simulating = false;
+function simulateBuild(claudeBuild, foePlayer) {
+  const onSnd = SFX.on; SFX.on = false; simulating = true;
+  Object.assign(players[1], { claude: 'fable', hero: null, name: 'Claude Fable', build: { ...claudeBuild },
+                              strategy: claudeStrategy('fable', claudeBuild, foePlayer.build), color: CLAUDE_SKIN.color });
+  startFight();
+  let g = 0; while (fight && fight.phase !== 'result' && g++ < 12000) step(1 / 60);
+  let score = 0;
+  if (fight) { const [a, b] = fight.robots, hp = r => r.hp / r.maxHp;
+    score = (fight.winner === b ? 2 : fight.winner === a ? -2 : 0) + hp(b) - hp(a); }
+  teardown(); simulating = false; SFX.on = onSnd;
+  return score;
+}
+
+function loadRecord() { try { return JSON.parse(localStorage.getItem('robo-claude-record') || '{}'); } catch (e) { return {}; } }
+function saveRecord(t, won) {
+  try { const r = loadRecord(); r[t] = r[t] || { w: 0, l: 0 }; r[t][won ? 'w' : 'l']++; localStorage.setItem('robo-claude-record', JSON.stringify(r)); } catch (e) {}
+}
+
+function prepareClaude() {
+  if (mode !== 'claude') { players[1].claude = null; return; }
+  const T = TIERS[tier], pick1 = claudePick(tier, players[0].build, players[0]), p = players[1];
+  p.claude = tier; p.hero = null; p.name = 'Claude ' + T.label; p.build = pick1.build; p.strategy = pick1.strategy;
+  p.color = CLAUDE_SKIN.color; p.ready = true; p.why = pick1.why;
+  renderClaudePanel();
+}
+
+function renderClaudePanel() {
+  const rec = loadRecord(), p = players[1];
+  document.getElementById('tiers').innerHTML = Object.entries(TIERS).map(([k, T]) => {
+    const r = rec[k] || { w: 0, l: 0 };
+    return `<button class="tier ${k === tier ? 'sel' : ''}" data-t="${k}"><span><b>${T.label}</b><small>${T.blurb}</small></span>` +
+           `<span class="st">${'★'.repeat(T.stars)}${'☆'.repeat(4 - T.stars)}<span class="rec">you ${r.w}W ${r.l}L</span></span></button>`;
+  }).join('');
+  const info = document.getElementById('claudeInfo');
+  info.innerHTML = p.claude === tier && p.why
+    ? `<b>Claude ${TIERS[tier].label}</b> ${p.why}.<br>Build: ${CONFIG.chassis[p.build.chassis].name} · ${CONFIG.wheels[p.build.wheels].name} wheels · ${CONFIG.weapons[p.build.weapon].name} · ${p.build.armour} armour (${PARTS.cost(p.build)} pts)<br>Plan: "${p.strategy}"`
+    : 'Claude builds its robot when you press FIGHT. Higher models look at your build first.';
+}
+
+function applyMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode').forEach(b => b.classList.toggle('sel', b.dataset.m === m));
+  document.getElementById('panel1').style.display = m === '2p' ? '' : 'none';
+  document.getElementById('claudePanel').style.display = m === 'claude' ? 'block' : 'none';
+  document.querySelector('#panel0 h2').textContent = m === 'claude' ? 'You' : 'Player 1';
+  players[1].claude = null;
+  if (m === 'claude') renderClaudePanel();
+  refreshPanel(0); refreshPanel(1);
+}
+
 // ============================================================
 // BUILDER UI
 // ============================================================
 const players = [
   { id: 0, color: '#3aa0ff', facing: 1, name: 'Blue Thunder', ready: false,
     build: { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 1 },
-    strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.' },
+    strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.', hero: null },
   { id: 1, color: '#ff4d5e', facing: -1, name: 'Red Fury', ready: false,
     build: { chassis: 'heavy', wheels: 'large', weapon: 'flipper', armour: 0 },
-    strategy: 'Patient. Wait until they get close, then flip them. Push them into the pit.' },
+    strategy: 'Patient. Wait until they get close, then flip them. Push them into the pit.', hero: null },
 ];
 
 function optButtons(cat) {
@@ -334,6 +636,8 @@ function buildPanel(i) {
   el.innerHTML = `
     <h2>Player ${i + 1}</h2>
     <div class="row"><input class="name" maxlength="18"><button class="small-btn rand">🎲 Random</button></div>
+    <span class="lbl" style="margin-top:8px">Hero skin (optional)</span>
+    <div class="heroes">${Object.entries(HEROES).map(([k, h]) => `<button class="hero" style="--hc:${h.color}" data-k="${k}">${h.name}<small>${h.tag}</small></button>`).join('')}</div>
     <canvas class="preview" width="320" height="170"></canvas>
     <div class="group"><span class="lbl">Chassis</span><div class="opts">${optButtons('chassis')}</div></div>
     <div class="group"><span class="lbl">Wheels</span><div class="opts">${optButtons('wheels')}</div></div>
@@ -351,10 +655,15 @@ function buildPanel(i) {
 
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.classList.contains('opt')) { p.build[b.dataset.cat] = b.dataset.key; p.ready = false; }
+    if (b.classList.contains('hero')) {
+      if (p.hero === b.dataset.k) p.hero = null; else applyHero(p, b.dataset.k);
+      p.ready = false; el.querySelector('.name').value = p.name; el.querySelector('.strategy').value = p.strategy;
+      players.forEach((_, j) => j !== i && refreshPanel(j));
+    }
+    else if (b.classList.contains('opt')) { p.build[b.dataset.cat] = b.dataset.key; p.ready = false; }
     else if (b.classList.contains('arm')) { p.build.armour = clamp(p.build.armour + +b.dataset.d, 0, CONFIG.armour.max); p.ready = false; }
     else if (b.classList.contains('rand')) {
-      p.build = PARTS.randomBuild(); p.name = PARTS.randomName(); p.strategy = pick(STRATEGY_PRESETS).text; p.ready = false;
+      p.hero = null; p.build = PARTS.randomBuild(); p.name = PARTS.randomName(); p.strategy = pick(STRATEGY_PRESETS).text; p.ready = false;
       el.querySelector('.name').value = p.name; el.querySelector('.strategy').value = p.strategy;
     }
     else if (b.classList.contains('preset')) { p.strategy = STRATEGY_PRESETS[+b.dataset.k].text; el.querySelector('.strategy').value = p.strategy; }
@@ -368,6 +677,7 @@ function buildPanel(i) {
 function refreshPanel(i) {
   const p = players[i], el = document.getElementById('panel' + i);
   el.querySelectorAll('.opt').forEach(b => b.classList.toggle('sel', p.build[b.dataset.cat] === b.dataset.key));
+  el.querySelectorAll('.hero').forEach(b => b.classList.toggle('sel', p.hero === b.dataset.k));
   el.querySelector('.plates').innerHTML = Array.from({ length: CONFIG.armour.max }, (_, k) => `<div class="plate ${k < p.build.armour ? 'on' : ''}"></div>`).join('');
   const cost = PARTS.cost(p.build), over = cost > CONFIG.budget;
   if (over) p.ready = false;
@@ -392,9 +702,9 @@ function refreshPanel(i) {
   rb.disabled = over; rb.classList.toggle('on', p.ready);
   rb.textContent = over ? 'Over budget' : p.ready ? '✓ Ready' : 'Ready';
   drawPreview(i);
-  const both = players.every(pl => pl.ready);
+  const both = players[0].ready && (mode === 'claude' || players[1].ready);
   document.getElementById('fightBtn').disabled = !both;
-  document.getElementById('fightHint').textContent = both ? 'Let’s go!' : 'Both players must be Ready';
+  document.getElementById('fightHint').textContent = both ? 'Let’s go!' : (mode === 'claude' ? 'Press Ready first' : 'Both players must be Ready');
 }
 
 function drawPreview(i) {
@@ -403,11 +713,15 @@ function drawPreview(i) {
   const floorY = 150, g = PARTS.geometry(p.build, p.facing);
   ctx.fillStyle = '#2a3150'; ctx.fillRect(20, floorY, cv.width - 40, 3);
   ctx.save();
-  ctx.translate(cv.width / 2, floorY - g.ground);
-  drawChassisLocal(ctx, p.build, g, p.color, { hammer: CONFIG.hammerAngles.rest, flip: 0 });
-  g.wheels.forEach(w => drawWheel(ctx, w.x, w.y, g.r, 0));
-  if (g.spinner) drawSpinner(ctx, g.spinner.x, g.spinner.y, g.spinner.r, 0.3, 0);
+  ctx.translate(cv.width / 2, floorY - g.ground + Math.sin(performance.now() / 420 + i) * 1.5);
+  const sk = heroSkin(p);
+  drawFighter(ctx, p.build, g, sk ? sk.color : p.color, sk, { hammerT: -1, flipT: -1, boost: false, vx: 0, idle: true, t: performance.now() / 1000 });
   ctx.restore();
+}
+
+function previewLoop() {
+  if (document.getElementById('builderScreen').style.display !== 'none') { drawPreview(0); if (mode === '2p') drawPreview(1); }
+  requestAnimationFrame(previewLoop);
 }
 
 // ============================================================
@@ -449,12 +763,16 @@ function createRobot(player, x) {
     cons.push(Constraint.create({ bodyA: body, pointA: rel({ x: x + g.spinner.x, y: y + g.spinner.y }), bodyB: spinner, length: 0, stiffness: 1 }));
   }
 
+  // A fighter is human-controlled unless it's Claude, a headless #auto run, a Random-Match exhibition, or a Fable practice sim.
+  const human = !AUTO && !exhibition && !simulating && !player.claude;
   const robot = {
-    player, name: player.name, color: player.color, build: b, g, f, body, wheels, spinner, cons,
+    player, name: player.name, skin: heroSkin(player), color: (heroSkin(player) || player).color, build: b, g, f, body, wheels, spinner, cons,
     rectOffset: rel(rect.position), all: [body, ...wheels, ...(spinner ? [spinner] : [])],
     maxHp: ch.hp, hp: ch.hp, ghost: ch.hp, overdrive: PARTS.overdrive(b),
     cooldown: 0.5, spin: 0, hammerT: -1, flipT: -1, boostT: 0, flipped: false, flippedTime: 0,
     rage: false, lastSpinHit: -9, lastLand: -9, lastBump: -9, lastHitBy: null, lastHitAt: -9,
+    human, controls: human ? controlMapFor(player) : null, grounded: true, jumpCd: 0, restY: y, atkCd: 0, atkAnim: null,
+    ai: player.claude ? { delay: TIERS[player.claude].delay, noise: TIERS[player.claude].noise, t: 0, last: null } : null,
     mode: '', warned: false, behaviour: strategyToBehaviour(player.strategy),
     stats: { dealt: 0, biggest: 0, hits: 0 },
   };
@@ -493,6 +811,7 @@ const AUTO = location.hash.includes('auto');
 const STEP = 1 / 60;
 
 function startFight() {
+  SFX.init();
   teardown();
   const A = CONFIG.arena;
   const engine = Engine.create();
@@ -600,6 +919,11 @@ function controlRobot(r, en, gdt) {
   const F = fight, b = r.build;
   const ch = CONFIG.chassis[b.chassis], wh = CONFIG.wheels[b.wheels], wp = CONFIG.weapons[b.weapon];
   r.cooldown = Math.max(0, r.cooldown - gdt);
+  r.flinch = Math.max(0, (r.flinch || 0) - gdt);
+  r.jumpCd = Math.max(0, (r.jumpCd || 0) - gdt);
+  r.atkCd = Math.max(0, (r.atkCd || 0) - gdt);
+  if (r.atkAnim) { r.atkAnim.t += gdt; if (r.atkAnim.t > r.atkAnim.dur) r.atkAnim = null; }
+  r.grounded = r.body.position.y >= r.restY - 10 && Math.abs(r.body.velocity.y) < 2.6;
   r.boostT = Math.max(0, r.boostT - gdt);
   r.flipped = Math.cos(r.body.angle) < -0.1;
   r.flippedTime = (r.flipped && F.phase === 'fight') ? r.flippedTime + gdt : 0;
@@ -618,20 +942,32 @@ function controlRobot(r, en, gdt) {
 
   let out = { drive: 0, fire: false, mode: '' };
   if (F.phase === 'fight') {
-    const s = buildState(r, en);
-    try {
-      out = r.behaviour.decide(s);
-      if (!out || !isFinite(out.drive)) throw new Error('decide() returned invalid output');
-    } catch (err) {
-      if (!r.warned) { console.warn(`[${r.name}] strategy failed, using fallback:`, err.message); r.warned = true; }
-      out = FALLBACK.decide(s);
+    if (r.human) {                       // YOU: read the keyboard, no AI
+      out = readHumanInput(r, en);
+    } else {
+      const s = buildState(r, en);
+      try {
+        out = r.behaviour.decide(s);
+        if (!out || !isFinite(out.drive)) throw new Error('decide() returned invalid output');
+      } catch (err) {
+        if (!r.warned) { console.warn(`[${r.name}] strategy failed, using fallback:`, err.message); r.warned = true; }
+        out = FALLBACK.decide(s);
+      }
+      if (r.ai) {   // Claude tier: reacts every `delay` seconds and sometimes makes a mistake
+        r.ai.t -= gdt;
+        if (r.ai.t <= 0 || !r.ai.last) {
+          r.ai.t = r.ai.delay * (0.7 + Math.random() * 0.6);
+          r.ai.last = Math.random() < r.ai.noise ? { drive: rand(-1, 1), fire: Math.random() < 0.5, mode: 'OOPS' } : out;
+        }
+        out = r.ai.last;
+      }
     }
   }
   r.mode = out.mode || '';
   const maxSpin = wh.maxSpin * ch.speed * r.overdrive * (r.boostT > 0 ? CONFIG.weapons.ram.boost : 1);
   const target = clamp(out.drive, -1, 1) * maxSpin * r.f;
   r.wheels.forEach(w => Body.setAngularVelocity(w, w.angularVelocity + (target - w.angularVelocity) * wh.accel));
-  if (out.fire && r.cooldown <= 0 && F.phase === 'fight') fireWeapon(r, en);
+  if (!r.human && out.fire && F.phase === 'fight') aiAttack(r, en);   // Claude/auto fighters punch too
 }
 
 function fireWeapon(r, en) {
@@ -775,13 +1111,14 @@ function damage(target, amount, attacker, x, y) {
     attacker.stats.biggest = Math.max(attacker.stats.biggest, d);
     target.lastHitBy = attacker; target.lastHitAt = F.clock;
   }
-  F.stall = 0;
-  sparks(x, y, d, attacker ? attacker.color : '#ffffff');
+  F.stall = 0; target.flinch = 0.3;
+  sparks(x, y, d, attacker ? attacker.color : '#ffffff'); SFX.hit(d);
   floatText(target.body.position.x + rand(-10, 10), target.body.position.y - 50, '-' + Math.max(1, Math.round(d)),
             d > CONFIG.bigHit ? '#ffd23f' : '#ffffff', clamp(16 + d * 0.7, 16, 42));
   if (d > CONFIG.bigHit) F.shake = Math.min(16, 5 + d * 0.3);
   if (!target.rage && target.hp > 0 && target.hp / target.maxHp < CONFIG.rageBelow) {
     target.rage = true;
+    SFX.rage();
     setBanner('FINISH IT!', '#ff4d5e', 1.1, `${target.name} enters RAGE MODE (+${CONFIG.rageDamageBonus * 100}% dmg)`);
   }
   if (target.hp <= 0) endFight(F.robots.find(r => r !== target), 'KO');
@@ -809,6 +1146,7 @@ function endFight(winner, method) {
   const label = { KO: 'K.O.!', Pit: 'RING OUT!', Flip: 'FLIPPED!', Time: 'TIME!' }[method];
   setBanner(label, method === 'Time' ? '#ffffff' : '#ff4d5e', F.koT + 0.3);
   if (F.slow) F.shake = 14;
+  if (method === 'Pit') SFX.fall(); if (method !== 'Time') SFX.ko(); else SFX.bell();
 }
 
 // ============================================================
@@ -916,6 +1254,13 @@ function drawArena() {
 }
 
 function drawRobot(r) {
+  const F = fight, won = F.winner === r && (F.phase === 'ko' || F.phase === 'result');
+  const bounce = won ? -Math.abs(Math.sin(F.clock * 7)) * 14 : 0;           // victory hops
+  ctx.save(); ctx.translate(0, bounce);
+  drawRobotBody(r);
+  ctx.restore();
+}
+function drawRobotBody(r) {
   const c = rectCentre(r);
   if (r.rage) {   // DBZ-style aura
     const pulse = 50 + Math.sin(fight.clock * 18) * 8;
@@ -923,61 +1268,146 @@ function drawRobot(r) {
     ag.addColorStop(0, 'rgba(255,200,60,.35)'); ag.addColorStop(1, 'rgba(255,80,0,0)');
     ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(c.x, c.y, pulse + r.g.w / 2, 0, Math.PI * 2); ctx.fill();
   }
+  const breath = Math.sin(fight.clock * 3 + r.player.id) * (fight.phase === 'intro' ? 0.035 : 0.012);   // idle breathing
+  const fl = clamp(r.flinch || 0, 0, 0.3) / 0.3;                                                         // hit squash
   ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(r.body.angle);
-  drawChassisLocal(ctx, r.build, r.g, r.color, { hammer: hammerAngle(r.hammerT), flip: flipAngle(r.flipT), boost: r.boostT > 0 });
+  ctx.scale(1 + breath * 0.5 + fl * 0.12, 1 - breath - fl * 0.12);
+  drawFighter(ctx, r.build, r.g, r.color, r.skin, { hammerT: r.hammerT, flipT: r.flipT, boost: r.boostT > 0, vx: r.body.velocity.x, t: fight.clock, atk: r.atkAnim });
+  if (fl > 0) { ctx.globalAlpha = fl * 0.5; ctx.fillStyle = '#fff'; roundRect(ctx, -r.g.w * 0.26, -r.g.ground, r.g.w * 0.52, r.g.ground * 2, 6); ctx.fill(); ctx.globalAlpha = 1; }
   ctx.restore();
-  r.wheels.forEach(w => drawWheel(ctx, w.position.x, w.position.y, r.g.r, w.angle));
-  if (r.spinner) drawSpinner(ctx, r.spinner.position.x, r.spinner.position.y, r.g.spinner.r, r.spinner.angle, r.spin / CONFIG.weapons.spinner.spinMax);
   if (r.flippedTime > 0.3 && fight.phase === 'fight') {
     outlinedText(`FLIPPED ${Math.max(0, CONFIG.flipKOSeconds - r.flippedTime).toFixed(1)}`, c.x, c.y - 60, '900 16px "Segoe UI", sans-serif', '#ff8a1f', 4);
   }
 }
 
-// Shared by builder preview and fight: draws chassis, wedge, armour, hammer in chassis-local space
-function drawChassisLocal(c, b, g, color, anim) {
-  const { w, h, f } = g;
-  if (anim.boost) {
-    c.fillStyle = Math.random() < 0.5 ? '#ffb02e' : '#ff5a1f';
-    c.beginPath(); c.moveTo(-f * w / 2, -6); c.lineTo(-f * (w / 2 + rand(18, 30)), 0); c.lineTo(-f * w / 2, 6); c.fill();
-  }
-  if (g.wedge && b.weapon === 'ram') {
-    c.fillStyle = '#9aa3b5'; c.strokeStyle = '#d7deea'; c.lineWidth = 1.5;
-    c.beginPath(); g.wedge.forEach((v, i) => i ? c.lineTo(v.x, v.y) : c.moveTo(v.x, v.y)); c.closePath(); c.fill(); c.stroke();
-  }
-  if (g.wedge && b.weapon === 'flipper') {
-    const hinge = g.wedge[1];
-    c.save(); c.translate(hinge.x, hinge.y); c.rotate(-f * anim.flip * 0.9);
-    c.fillStyle = '#ffd23f'; c.strokeStyle = '#fff3b0'; c.lineWidth = 1.5;
-    c.beginPath(); g.wedge.forEach((v, i) => i ? c.lineTo(v.x - hinge.x, v.y - hinge.y) : c.moveTo(v.x - hinge.x, v.y - hinge.y)); c.closePath(); c.fill(); c.stroke();
-    c.restore();
-  }
-  // body
-  const bg = c.createLinearGradient(0, -h / 2, 0, h / 2);
-  bg.addColorStop(0, color); bg.addColorStop(1, shade(color, -0.45));
-  c.fillStyle = bg; c.strokeStyle = shade(color, 0.4); c.lineWidth = 2;
-  roundRect(c, -w / 2, -h / 2, w, h, 5); c.fill(); c.stroke();
-  c.fillStyle = 'rgba(0,0,0,.25)'; roundRect(c, -w / 2 + 6, -h / 2 + 6, w - 12, h - 12, 3); c.fill();
-  // visor (front)
-  c.fillStyle = '#bff4ff'; c.shadowColor = '#7fe7ff'; c.shadowBlur = 8;
-  c.fillRect(f > 0 ? w / 2 - 16 : -w / 2 + 6, -h / 2 + 4, 10, 5);
-  c.shadowBlur = 0;
-  // armour plates on top
+// A human-SIZED humanoid fighter, drawn in chassis-local space (origin = body centre, y down).
+// Physics is untouched — this is purely how a fighter LOOKS: head, torso, two arms, two walking
+// legs, and the chosen weapon held in the front hand. Shared by the builder preview and the fight.
+function drawFighter(c, b, g, color, skin, anim) {
+  const { w, f } = g, t = anim.t || 0;
+  const feet = g.ground;                       // local y of the floor contact
+  const hipY = feet - 30, shoulderY = hipY - 26, headY = shoulderY - 15, headR = 11;
+  const acc = skin ? skin.accent : shade(color, 0.5), dark = shade(color, -0.5);
+  const speed = Math.abs(anim.vx || 0);
+  const swing = Math.sin(t * 9) * clamp(speed * 0.5, anim.idle ? 0.1 : 0.12, 1.1);
+
+  // ---- LEGS (behind the torso) ----
+  const hipX = w * 0.1;
+  [[-1, swing], [1, -swing]].forEach(([side, sw]) => {
+    const kneeX = side * hipX + sw * 7, footX = side * hipX + sw * 13;
+    c.strokeStyle = dark; c.lineWidth = 7; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(side * hipX, hipY); c.lineTo(kneeX, (hipY + feet) / 2); c.lineTo(footX, feet); c.stroke();
+    c.fillStyle = '#10131e'; c.beginPath(); c.ellipse(footX + f * 3, feet, 7, 3.5, 0, 0, Math.PI * 2); c.fill();
+  });
+
+  // ---- BACK ARM ----
+  const shX = w * 0.17;
+  c.strokeStyle = dark; c.lineWidth = 6; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-f * shX, shoulderY + 3); c.lineTo(-f * shX - f * 4, shoulderY + 17 - swing * 4); c.stroke();
+
+  // ---- TORSO ----
+  const tg = c.createLinearGradient(0, shoulderY, 0, hipY);
+  tg.addColorStop(0, color); tg.addColorStop(1, dark);
+  c.fillStyle = tg; c.strokeStyle = acc; c.lineWidth = 2;
+  roundRect(c, -w * 0.2, shoulderY, w * 0.4, hipY - shoulderY, 7); c.fill(); c.stroke();
+  // chest emblem
+  c.fillStyle = acc; c.shadowColor = acc; c.shadowBlur = 6 + 4 * Math.sin(t * 5);
+  c.beginPath(); c.arc(f * 2, (shoulderY + hipY) / 2, 4.5, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+  // armour plates as shoulder pauldrons
   for (let i = 0; i < b.armour; i++) {
     c.fillStyle = i ? '#8e98ad' : '#b8c2d8'; c.strokeStyle = '#59627a'; c.lineWidth = 1;
-    roundRect(c, -w / 2 + 6, -h / 2 - 5 - i * 5, w - 22, 5, 1.5); c.fill(); c.stroke();
+    roundRect(c, -w * 0.24, shoulderY - 2 - i * 4, w * 0.48, 4, 2); c.fill(); c.stroke();
   }
-  // hammer arm
-  if (g.hammer) {
-    const hm = g.hammer, th = anim.hammer;
-    const hx = hm.x + f * hm.len * Math.cos(th), hy = hm.y + hm.len * Math.sin(th);
-    c.strokeStyle = '#6c768f'; c.lineWidth = 6; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(hm.x, hm.y); c.lineTo(hx, hy); c.stroke();
-    c.save(); c.translate(hx, hy); c.rotate(Math.atan2(Math.sin(th), f * Math.cos(th)) + Math.PI / 2);
-    c.fillStyle = '#3a4156'; c.strokeStyle = color; c.lineWidth = 2;
-    roundRect(c, -13, -9, 26, 18, 3); c.fill(); c.stroke();
-    c.restore();
-    c.fillStyle = '#c8cfdd'; c.beginPath(); c.arc(hm.x, hm.y, 5, 0, Math.PI * 2); c.fill();
+
+  // ---- HEAD ----
+  c.fillStyle = shade(color, 0.12); c.strokeStyle = acc; c.lineWidth = 2;
+  c.beginPath(); c.arc(f * 2, headY, headR, 0, Math.PI * 2); c.fill(); c.stroke();
+  if (skin) drawCrest(c, skin, f * 2, headY - headR, acc);
+  if (skin && skin.face === 'beard') {                                       // Modi: white beard
+    c.fillStyle = '#eef1f7'; c.beginPath(); c.arc(f * 2, headY + 2, headR - 1, 0.12 * Math.PI, 0.88 * Math.PI); c.fill();
   }
+  c.fillStyle = '#bff4ff'; c.shadowColor = '#7fe7ff'; c.shadowBlur = 8;     // forward-facing visor
+  c.fillRect(f > 0 ? f * 2 : f * 2 - 8, headY - 3, 8, 4); c.shadowBlur = 0;
+  if (skin && skin.face === 'specs') {                                       // Abhijit: glasses
+    c.strokeStyle = '#10131e'; c.lineWidth = 2;
+    c.beginPath(); c.arc(f * 2 + 3, headY - 2, 3.4, 0, Math.PI * 2); c.arc(f * 2 - 3, headY - 2, 3.4, 0, Math.PI * 2); c.stroke();
+  }
+
+  // ---- FRONT ARM + WEAPON ----
+  drawArmWeapon(c, b, g, color, acc, anim, f * shX, shoulderY + 3);
+}
+
+function drawCrest(c, sk, hx, top, acc) {
+  c.fillStyle = acc;
+  if (sk.crest === 'crest')      { c.beginPath(); c.moveTo(hx - 7, top); c.lineTo(hx, top - 12); c.lineTo(hx + 7, top); c.fill(); }
+  else if (sk.crest === 'ears')  { [-7, 7].forEach(d => { c.beginPath(); c.moveTo(hx + d - 3, top); c.lineTo(hx + d, top - 9); c.lineTo(hx + d + 3, top); c.fill(); }); }
+  else if (sk.crest === 'crown') { c.beginPath(); c.moveTo(hx - 9, top); for (let k = 0; k < 3; k++) { c.lineTo(hx - 9 + k * 6 + 3, top - 8); c.lineTo(hx - 9 + (k + 1) * 6, top); } c.fill(); }
+  else if (sk.crest === 'mask')  { c.fillStyle = '#10131e'; roundRect(c, hx - 9, top + 6, 18, 6, 2); c.fill(); c.fillStyle = acc; c.fillRect(hx - 6, top + 8, 12, 2); }
+}
+
+function drawArmWeapon(c, b, g, color, acc, anim, sx, sy) {
+  const { w, f } = g, t = anim.t || 0;
+  if (anim.atk) {                               // striking: throw the front arm forward
+    const p = Math.sin(clamp(anim.atk.t / anim.atk.dur, 0, 1) * Math.PI);
+    const ext = 14 + p * (anim.atk.kind === 'jab' ? 20 : anim.atk.kind === 'heavy' ? 30 : 42);
+    const hx = sx + f * ext, hy = sy + 2 - (anim.atk.kind === 'special' ? p * 14 : 0);
+    const col = anim.atk.kind === 'jab' ? '#ffffff' : anim.atk.kind === 'heavy' ? '#ffd23f' : '#ff8a1f';
+    c.strokeStyle = color; c.lineWidth = 7; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(sx, sy); c.lineTo(hx, hy); c.stroke();
+    c.save(); c.globalAlpha = 0.45 + 0.55 * p; c.strokeStyle = col; c.lineWidth = 3; c.shadowColor = col; c.shadowBlur = 10;
+    c.beginPath(); c.arc(hx, hy, 8 + p * 6, -0.9, 0.9); c.stroke(); c.restore();
+    c.fillStyle = acc; c.beginPath(); c.arc(hx, hy, 5, 0, Math.PI * 2); c.fill();
+    return;
+  }
+  const drawArm = (hx, hy) => {
+    c.strokeStyle = color; c.lineWidth = 7; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(sx, sy); c.lineTo(hx, hy); c.stroke();
+    c.fillStyle = acc; c.beginPath(); c.arc(hx, hy, 4, 0, Math.PI * 2); c.fill();
+  };
+  if (b.weapon === 'hammer') {
+    const th = hammerAngle(anim.hammerT);                       // -1.75 rest .. 0.05 strike
+    const hx = sx + f * 30 * Math.cos(th), hy = sy + 30 * Math.sin(th);
+    drawArm(hx, hy);
+    c.save(); c.translate(hx, hy); c.fillStyle = '#3a4156'; c.strokeStyle = acc; c.lineWidth = 2;
+    roundRect(c, -8, -8, 16, 16, 3); c.fill(); c.stroke(); c.restore();
+  } else if (b.weapon === 'spinner') {
+    const hx = sx + f * 22, hy = sy + 5;
+    drawArm(hx, hy);
+    drawSpinner(c, hx, hy, 12, t * 22, 1);                      // spinning blade in hand
+  } else if (b.weapon === 'flipper') {
+    const fl = flipAngle(anim.flipT);                           // 0 rest .. 1 scoop-up (uppercut)
+    const hx = sx + f * (18 + fl * 4), hy = sy + 12 - fl * 26;
+    drawArm(hx, hy);
+    c.save(); c.translate(hx, hy); c.rotate(-f * (0.5 + fl)); c.fillStyle = '#ffd23f'; c.strokeStyle = '#fff3b0'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(f * 20, -4); c.lineTo(f * 20, 4); c.closePath(); c.fill(); c.stroke(); c.restore();
+  } else {                                                      // ram: forward fist, lunges on boost
+    const lunge = anim.boost ? 8 : 0, hx = sx + f * (20 + lunge), hy = sy + 6;
+    if (anim.boost) { c.fillStyle = Math.random() < 0.5 ? '#ffb02e' : '#ff5a1f'; c.beginPath(); c.moveTo(-f * w * 0.2, sy); c.lineTo(-f * (w * 0.2 + rand(16, 28)), sy + 6); c.lineTo(-f * w * 0.2, sy + 12); c.fill(); }
+    drawArm(hx, hy);
+    c.save(); c.translate(hx, hy); c.fillStyle = '#9aa3b5'; c.strokeStyle = '#d7deea'; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(0, -7); c.lineTo(f * 10, 0); c.lineTo(0, 7); c.closePath(); c.fill(); c.stroke(); c.restore();
+  }
+}
+
+function drawSkin(c, sk, w, h, f, tm) {
+  tm = tm || 0;
+  c.save();
+  c.fillStyle = sk.accent; c.fillRect(-w / 2 + 4, h / 2 - 8, w - 8, 3);               // trim stripe
+  const ex = -f * w * 0.12, ey = 0;
+  c.shadowColor = sk.accent; c.shadowBlur = 7 + 5 * Math.sin(tm * 4); c.fillStyle = sk.accent; c.strokeStyle = sk.accent; c.lineWidth = 2;
+  if (sk.emblem === 'spiral') {
+    c.beginPath(); for (let t = 0; t < 12; t += 0.4) { const rr = 1.5 + t * 0.7; c.lineTo(ex + Math.cos(t + tm * 3) * rr, ey + Math.sin(t + tm * 3) * rr); } c.stroke();
+  } else if (sk.emblem === 'bands') {
+    c.fillRect(ex - 10, ey - 7, 20, 3); c.fillRect(ex - 10, ey - 1, 20, 3); c.fillRect(ex - 10, ey + 5, 20, 3);
+  } else { c.beginPath(); c.arc(ex, ey, 4.5 + 1.2 * Math.sin(tm * 5), 0, Math.PI * 2); c.fill(); }
+  c.shadowBlur = 0;
+  const hx = f * w * 0.18 + Math.sin(tm * 2.2) * 0.8, top = -h / 2;                                                // head piece on top of the chassis
+  c.fillStyle = sk.accent;
+  if (sk.crest === 'crest') { c.beginPath(); c.moveTo(hx - 8, top); c.lineTo(hx, top - 12); c.lineTo(hx + 8, top); c.fill(); }
+  else if (sk.crest === 'ears') { [-7, 7].forEach(d => { c.beginPath(); c.moveTo(hx + d - 3, top); c.lineTo(hx + d, top - 10); c.lineTo(hx + d + 3, top); c.fill(); }); }
+  else if (sk.crest === 'crown') { c.beginPath(); c.moveTo(hx - 10, top); for (let k = 0; k < 4; k++) { c.lineTo(hx - 10 + k * 6.7 + 3.3, top - 9); c.lineTo(hx - 10 + (k + 1) * 6.7, top); } c.fill(); }
+  else if (sk.crest === 'mask') { c.fillStyle = '#10131e'; roundRect(c, hx - 9, top - 7, 18, 7, 2); c.fill(); c.fillStyle = sk.accent; c.fillRect(hx - 6, top - 5, 12, 2); }
+  c.restore();
 }
 
 function drawWheel(c, x, y, r, a) {
@@ -1048,6 +1478,15 @@ function drawHUD() {
     if (b.sub) outlinedText(b.sub, 0, size * 0.75, '700 18px "Segoe UI", sans-serif', '#cfd6ea', 4);
     ctx.restore();
   }
+  // controls hint (only when a human is actually playing)
+  if (!AUTO && !exhibition && F.phase !== 'result') {
+    const hint = mode === 'claude'
+      ? 'YOU   ← → move · W/↑ jump · A jab · S heavy · D special            CLAUDE is auto'
+      : 'P1  A/D move · W jump · SPACE+S attack        P2  ← → move · ↑ jump · ENTER+RShift attack';
+    ctx.font = '600 13px "Segoe UI", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(A.w / 2 - 360, A.h - 26, 720, 20);
+    ctx.fillStyle = 'rgba(232,236,245,.9)'; ctx.fillText(hint, A.w / 2, A.h - 11);
+  }
 }
 
 // ============================================================
@@ -1056,6 +1495,7 @@ function drawHUD() {
 function showResult() {
   const F = fight;
   F.phase = 'result';
+  if (simulating) return;
   const methods = { KO: 'Knockout · HP reached 0', Pit: 'Ring out · fell into the pit', Flip: 'Flipped · stuck upside down for 5 s', Time: 'Time up · higher HP % wins' };
   const w = document.getElementById('resWinner');
   w.textContent = F.winner ? `${F.winner.name} wins!` : 'Draw!';
@@ -1065,6 +1505,10 @@ function showResult() {
     '<tr><th>Robot</th><th>Damage dealt</th><th>Biggest hit</th><th>Hits</th><th>HP left</th></tr>' +
     F.robots.map(r => `<tr><td style="color:${r.color};font-weight:700">${r.name}</td><td>${Math.round(r.stats.dealt)}</td>` +
       `<td>${Math.round(r.stats.biggest)}</td><td>${r.stats.hits}</td><td>${Math.round(r.hp / r.maxHp * 100)}%</td></tr>`).join('');
+  if (mode === 'claude' && F.winner && !AUTO && !exhibition) {
+    const won = F.winner.player.id === 0; saveRecord(tier, won);
+    document.getElementById('resMethod').textContent += won ? `  ·  You beat Claude ${TIERS[tier].label}!` : `  ·  Claude ${TIERS[tier].label} wins`;
+  }
   document.getElementById('result').style.display = 'flex';
   if (AUTO) autoNext();
 }
@@ -1072,12 +1516,14 @@ function showResult() {
 // ============================================================
 // BOOT (+ #auto headless test mode: random matches, results logged to the page)
 // ============================================================
-document.getElementById('fightBtn').addEventListener('click', startFight);
+document.getElementById('fightBtn').addEventListener('click', () => { exhibition = false; prepareClaude(); startFight(); });
 document.getElementById('rematchBtn').addEventListener('click', startFight);
 document.getElementById('backBtn').addEventListener('click', backToBuilder);
 document.getElementById('abortBtn').addEventListener('click', backToBuilder);
 document.getElementById('randomMatchBtn').addEventListener('click', () => {
+  exhibition = true;                         // hands-off: both fighters are auto
   players.forEach((p, i) => {
+    p.claude = null; p.hero = null;
     p.build = PARTS.randomBuild(); p.name = PARTS.randomName(); p.strategy = pick(STRATEGY_PRESETS).text; p.ready = true;
     document.querySelector('#panel' + i + ' .name').value = p.name;
     document.querySelector('#panel' + i + ' .strategy').value = p.strategy;
@@ -1086,6 +1532,11 @@ document.getElementById('randomMatchBtn').addEventListener('click', () => {
   startFight();
 });
 buildPanel(0); buildPanel(1); refreshPanel(0); refreshPanel(1);
+document.getElementById('modes').addEventListener('click', e => { const b = e.target.closest('.mode'); if (b) applyMode(b.dataset.m); });
+document.getElementById('tiers').addEventListener('click', e => { const b = e.target.closest('.tier'); if (b) { tier = b.dataset.t; players[1].claude = null; renderClaudePanel(); } });
+document.getElementById('soundBtn').addEventListener('click', () => SFX.toggle());
+applyMode(AUTO ? '2p' : 'claude');
+if (!AUTO) previewLoop();
 
 let autoCount = 0;
 function autolog(s) { document.getElementById('autolog').textContent += s + '\n'; }
