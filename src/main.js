@@ -54,6 +54,7 @@ function startFight() {
 // Arena for this fight: the builder choice. #auto runs pick a random arena unless #...arena=<key> pins one.
 function fightArena() {
   if (AUTO && !ARENA_HASH) return pick(Object.keys(CONFIG.arenas.list));
+  if (getArena() === 'random') return pick(Object.keys(CONFIG.arenas.list));
   return arenaKey(getArena());
 }
 

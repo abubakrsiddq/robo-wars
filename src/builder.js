@@ -23,10 +23,10 @@ function setModel(model) {
   p.model = model; p.name = m.label; p.color = m.color; p.build = Object.assign({}, m.build);
 }
 
-// arena choice (a CONFIG.arenas.list key); main.js reads it when a fight starts
+// arena choice: a CONFIG.arenas.list key, or 'random' (a new arena every fight); main.js resolves it when a fight starts
 let arenaChoice = CONFIG.arenas.default;
 function getArena() { return arenaChoice; }
-function setArena(key) { if (CONFIG.arenas.list[key]) arenaChoice = key; }
+function setArena(key) { if (CONFIG.arenas.list[key] || key === 'random') arenaChoice = key; }
 
 function saveChoices() {
   try { localStorage.setItem(CONFIG.builder.storageKey, JSON.stringify({ name: players[0].name, cards, model: players[1].model, arena: arenaChoice })); } catch (e) {}
@@ -136,8 +136,10 @@ function buildArenaPicker() {
   const el = document.getElementById('arenaPick'); if (!el) return;
   el.innerHTML = '<span class="lbl">Arena</span><div class="arenas">' + Object.entries(CONFIG.arenas.list).map(([k, a]) =>
     `<button class="pick arena-opt" data-arena="${k}" style="--c:${a.accent}"><canvas width="240" height="120"></canvas>` +
-    `<b>${a.name}</b><small>${a.place}</small></button>`).join('') + '</div>';
-  el.querySelectorAll('.arena-opt').forEach(b => drawArenaThumb(b.querySelector('canvas'), b.dataset.arena));
+    `<b>${a.name}</b><small>${a.place}</small></button>`).join('') +
+    '<button class="pick arena-opt arena-rand" data-arena="random"><div class="rand-thumb">\u{1F3B2}</div>' +
+    '<b>Random</b><small>A new arena every fight</small></button></div>';
+  el.querySelectorAll('.arena-opt').forEach(b => { const cv = b.querySelector('canvas'); if (cv) drawArenaThumb(cv, b.dataset.arena); });
   el.addEventListener('click', e => {
     const b = e.target.closest && e.target.closest('button.arena-opt'); if (!b) return;
     setArena(b.dataset.arena); refreshArenaPicker(); saveChoices();
@@ -145,6 +147,6 @@ function buildArenaPicker() {
   refreshArenaPicker();
 }
 function refreshArenaPicker() {
-  const el = document.getElementById('arenaPick'), k = arenaKey(arenaChoice); if (!el) return;
+  const el = document.getElementById('arenaPick'), k = arenaChoice === 'random' ? 'random' : arenaKey(arenaChoice); if (!el) return;
   el.querySelectorAll('.arena-opt').forEach(b => b.classList.toggle('sel', b.dataset.arena === k));
 }
