@@ -43,6 +43,8 @@ APIs, data contracts and CONFIG-key ownership are in **`docs/ARCHITECTURE.md`**,
 - **AI difficulty test:** `node autotest.js ../index.html 60 ai` runs AI vs AI and prints a win-rate matrix.
   Target ordering: Opus > Sonnet > Haiku.
 - In the browser, `index.html#auto40` runs the same auto mode visually.
+  `#auto` picks a random arena per fight; `#auto40&arena=taj` pins one. `index.html#arena=hampi&fight` opens a fight
+  directly in an arena (keys: `stadium`, `taj`, `hampi`, `gomateshwara`; see `CONFIG.arenas`).
 - Headless Edge `--virtual-time-budget` hangs with this game loop, so don't use it.
 - After changes, also open `index.html` in a browser for a feel check. The harness can't judge visuals or feel.
 
@@ -62,4 +64,5 @@ APIs, data contracts and CONFIG-key ownership are in **`docs/ARCHITECTURE.md`**,
   split into `src/` components with guardrails.
 - Known issues: Sonnet vs Haiku difficulty gap is weak or noisy (Opus is clearly hardest). Couplings to clean up
   (see ARCHITECTURE.md): `createRobot` builds AI brains and reads `AUTO`; `combat.js` writes `autolog`.
-- Candidates: sound (WebAudio), real Claude API opponents, tournament mode, more arenas, balance.
+- Arenas: Robo Stadium (default), Taj Mahal, Hampi, Gomateshwara (picker in the builder; art + themes in `arena.js`).
+- Candidates: sound (WebAudio), real Claude API opponents, tournament mode, balance.

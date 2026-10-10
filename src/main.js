@@ -3,12 +3,13 @@
 // FIGHT LOOP + BOOT: per-fight lifecycle, fixed-step loop, state for decide(), render pipeline, wiring, #auto mode
 // OWNS:    fight (the live fight object), rafId, AUTO flags, startFight/teardown/backToBuilder, frame/step, buildState, controlRobot, render, DOM button wiring, auto-mode loop
 // EXPORTS: fight, AUTO, AUTO_AI, STEP, startFight, backToBuilder, buildState, controlRobot, render, autolog, autoNext
-// READS:   CONFIG, PARTS, Events, Composite, Engine, performance, STRATEGY_PRESETS, pick, createRobot, createArenaWorld, handlePair, checkWin, getAction, applyAction, tickMoves, hammerImpact, INPUT, IDLE_ACTION, updateEffects, setBanner, showResult, drawArena, drawParticles, drawRobot, drawHUD, outlinedText, ctx, clamp, rand, players, setModel, loadChoices, buildPanel, refreshPanel, Body, isGrounded
+// READS:   CONFIG, PARTS, DPR, arenaKey, getArena, setArena, buildArenaPicker, Events, Composite, Engine, performance, STRATEGY_PRESETS, pick, createRobot, createArenaWorld, handlePair, checkWin, getAction, applyAction, tickMoves, hammerImpact, INPUT, IDLE_ACTION, updateEffects, setBanner, showResult, drawArena, drawParticles, drawRobot, drawHUD, outlinedText, ctx, clamp, rand, players, setModel, loadChoices, buildPanel, refreshPanel, Body, isGrounded
 // ============================================================
 let fight = null, rafId = null;
 const AUTO = location.hash.includes('auto');
 const AUTO_AI = /^#auto\d*ai/.test(location.hash);   // #auto30ai: AI vs AI; #auto30aisame: same random build for both
 const STEP = 1 / 60;
+const ARENA_HASH = (/arena=(\w+)/.exec(location.hash) || [])[1] || '';   // e.g. index.html#arena=hampi&fight
 let autoAiK = 0;
 
 // AI-vs-AI harness: cycle through every ordered pair of different models so each side plays each matchup
@@ -36,7 +37,7 @@ function startFight() {
     engine, robots: [r1, r2], floorL, floorR, phase: 'intro', introT: CONFIG.introSeconds,
     time: CONFIG.fightSeconds, clock: 0, stall: 0, koT: 0, slow: false, winner: null, method: '',
     shake: 0, particles: [], texts: [], banner: null, last: performance.now(), acc: 0,
-    crowd: Array.from({ length: 140 }, (_, k) => ({ x: (k / 140) * A.w + rand(-4, 4), y: rand(360, 420), r: rand(7, 11), s: rand(0.12, 0.3) })),
+    arena: fightArena(),
   };
   setBanner(`${r1.name}  VS  ${r2.name}`, '#ffffff', 1.4, 'ROUND 1');
   Events.on(engine, 'collisionStart', e => e.pairs.forEach(pr => handlePair(pr, false)));
@@ -44,8 +45,16 @@ function startFight() {
   document.getElementById('builderScreen').style.display = 'none';
   document.querySelector('header').style.display = 'none';
   document.getElementById('result').style.display = 'none';
+  const ar = CONFIG.arenas.list[fight.arena];
+  document.getElementById('arenaName').textContent = ar.name + ' · ' + ar.place;
   document.getElementById('fightScreen').style.display = 'block';
   if (AUTO) { const f = fight; setTimeout(() => fight === f && frame(0), 0); } else rafId = requestAnimationFrame(frame);
+}
+
+// Arena for this fight: the builder choice. #auto runs pick a random arena unless #...arena=<key> pins one.
+function fightArena() {
+  if (AUTO && !ARENA_HASH) return pick(Object.keys(CONFIG.arenas.list));
+  return arenaKey(getArena());
 }
 
 function teardown() {
@@ -157,6 +166,7 @@ function controlRobot(r, en, gdt) {
 // ---- render pipeline: arena -> particles -> robots -> texts -> HUD ----
 function render() {
   const F = fight, X = CONFIG.fx;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);   // canvas backing store is DPR x CONFIG.arena size
   ctx.save();
   if (F.shake > 0.3) ctx.translate(rand(-F.shake, F.shake), rand(-F.shake, F.shake));
   drawArena();
@@ -190,8 +200,11 @@ document.getElementById('randomMatchBtn').addEventListener('click', () => {
   startFight();
 });
 if (!AUTO) loadChoices();
+if (ARENA_HASH && CONFIG.arenas.list[ARENA_HASH]) setArena(ARENA_HASH);
 setModel(players[1].model);
 buildPanel(0); buildPanel(1); refreshPanel(0); refreshPanel(1);
+buildArenaPicker();
+if (!AUTO && /\bfight\b/.test(location.hash)) startFight();   // #arena=<key>&fight opens a fight directly
 
 let autoCount = 0;
 function autolog(s) { document.getElementById('autolog').textContent += s + '\n'; }

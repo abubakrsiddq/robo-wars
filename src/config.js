@@ -29,6 +29,26 @@ const CONFIG = {
   bigHit: 15,                    // screen shake threshold
   rageBelow: 0.25, rageDamageBonus: 0.2,
   arena: { w: 1200, h: 600, floorY: 500, pitW: 100, spawnOffset: 170, wallW: 30, pitKODepth: 70 },
+  // ---- ARENAS: picked in the builder (or #arena=<key>&fight). Physics (CONFIG.arena) is the same everywhere;
+  // only the look changes. theme colours: crowd = 'r,g,b', floor/pit = [top, bottom], wall = [base, stripe].
+  arenas: {
+    default: 'stadium',
+    maxDPR: 2,                 // canvas + cached backdrop resolution cap (screen pixel density)
+    crowdCount: 140,           // landmark arenas: crowd heads across the width...
+    crowdGap: [360, 840],      // ...minus this x range, so the landmark in the middle stays visible
+    list: {
+      stadium:      { name: 'Robo Stadium', place: 'Neon night arena', accent: '#3aa0ff' },
+      taj:          { name: 'Taj Mahal', place: 'Agra, Uttar Pradesh', accent: '#f2a678',
+                      theme: { crowd: '58,36,64', board: '#1a1024', ground: '#5d7a3e', floor: ['#f2ebe0', '#b5a794'], edge: '#d4a84a',
+                               pit: ['#2a5a80', '#0b1a28'], water: true, pitLabel: 'POOL', wall: ['#7a3326', '#9a4a36'], led: 'rgba(255,210,63,.4)' } },
+      hampi:        { name: 'Hampi', place: 'Vijayanagara, Karnataka', accent: '#e6b072',
+                      theme: { crowd: '74,40,20', board: '#24150c', ground: '#a8794a', floor: ['#b39a7c', '#5e4a38'], edge: '#e6b072',
+                               pit: ['#2b6276', '#0e2630'], water: true, pitLabel: 'RIVER', wall: ['#6b5444', '#86705c'], led: 'rgba(255,210,63,.4)' } },
+      gomateshwara: { name: 'Gomateshwara Statue', place: 'Shravanabelagola, Karnataka', accent: '#e8c35a',
+                      theme: { crowd: '38,46,42', board: '#141a18', ground: '#8f897a', floor: ['#d8d1c1', '#7a7468'], edge: '#e8c35a',
+                               pit: ['#3a3630', '#0e0c0a'], water: false, pitLabel: 'LEDGE', wall: ['#5d5850', '#78726a'], led: 'rgba(255,210,63,.4)' } },
+    },
+  },
   chassis: {
     light:  { name: 'Light',  cost: 20, hp: 80,  w: 74,  h: 24, mass: 3, speed: 1.25, desc: 'Fast, fragile' },
     medium: { name: 'Medium', cost: 35, hp: 120, w: 86,  h: 28, mass: 5, speed: 1.0,  desc: 'All-rounder' },

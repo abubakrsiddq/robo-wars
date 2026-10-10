@@ -1,12 +1,16 @@
 'use strict';
 // ============================================================
 // EFFECTS: particles, floating text, banners, screen shake and generic canvas helpers
-// OWNS:    canvas handle (cv, ctx), particle/text/banner updates and drawing, roundRect/shade/outlinedText/esc/mulberry32
-// EXPORTS: cv, ctx, TAU, mulberry32, esc, sparks, dust, floatText, setBanner, updateEffects, drawParticles, outlinedText, roundRect, shade
+// OWNS:    canvas handle (cv, ctx, DPR backing-store scale), particle/text/banner updates and drawing, roundRect/shade/outlinedText/esc/mulberry32
+// EXPORTS: cv, ctx, DPR, TAU, mulberry32, esc, sparks, dust, floatText, setBanner, updateEffects, drawParticles, outlinedText, roundRect, shade
 // READS:   CONFIG, clamp, rand, fight, rectCentre
 // ============================================================
 const cv = document.getElementById('arena'), ctx = cv.getContext('2d');
 const TAU = Math.PI * 2;
+// Render at screen pixel density so the arena isn't blurry; drawing code keeps using CONFIG.arena units
+// (render() applies ctx.setTransform(DPR, ...) every frame).
+const DPR = Math.min(CONFIG.arenas.maxDPR, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+cv.width = Math.round(CONFIG.arena.w * DPR); cv.height = Math.round(CONFIG.arena.h * DPR);
 
 function mulberry32(a) {
   return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
