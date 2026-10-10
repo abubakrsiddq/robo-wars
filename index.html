@@ -158,6 +158,29 @@ const CONFIG = {
   bump: { minSpeed: 5, mul: 0.8 },
   landing: { minSpeed: 7, mul: 2.2 },
   hammerAngles: { rest: -1.75, strike: 0.05 },
+
+  // ---- AI OPPONENTS: one per Claude model; the model choice = difficulty -------------
+  // label/tier/desc/color/build are read by the builder; the rest tunes the AI brain.
+  ai: {
+    haiku:  { label: 'Claude Haiku',  tier: 'Easy',   color: '#4ade80', desc: 'Quick but sloppy. Swings wildly, rarely dodges.',
+              build: { chassis: 'light',  wheels: 'small', weapon: 'ram',     armour: 0 } },
+    sonnet: { label: 'Claude Sonnet', tier: 'Medium', color: '#fbbf24', desc: 'Solid fighter. Times attacks, backs off when hurt.',
+              build: { chassis: 'medium', wheels: 'large', weapon: 'hammer',  armour: 1 } },
+    opus:   { label: 'Claude Opus',   tier: 'Hard',   color: '#c084fc', desc: 'Reads you. Punishes cooldowns and corners you at the pit.',
+              build: { chassis: 'medium', wheels: 'large', weapon: 'flipper', armour: 1 } },
+  },
+
+  // ---- PLAYER CONTROLS: arrows move, WASD = moves -------------------------------------
+  controls: {
+  },
+
+  // ---- SIMPLE BUILDER: Body / Attack / Defence cards -----------------------------------
+  builder: {
+  },
+
+  // ---- GRAPHICS -----------------------------------------------------------------------
+  fx: {
+  },
 };
 
 // ============================================================
@@ -313,11 +336,12 @@ const FALLBACK = {
 // ============================================================
 // BUILDER UI
 // ============================================================
+// controller: 'human' (keyboard) | 'ai' (CONFIG.ai[model]) | 'strategy' (English text, used by #auto)
 const players = [
-  { id: 0, color: '#3aa0ff', facing: 1, name: 'Blue Thunder', ready: false,
+  { id: 0, color: '#3aa0ff', facing: 1, name: 'Blue Thunder', ready: false, controller: 'human',
     build: { chassis: 'medium', wheels: 'large', weapon: 'spinner', armour: 1 },
     strategy: 'Aggressive. Charge and attack nonstop. Retreat when low.' },
-  { id: 1, color: '#ff4d5e', facing: -1, name: 'Red Fury', ready: false,
+  { id: 1, color: '#ff4d5e', facing: -1, name: 'Red Fury', ready: false, controller: 'ai', model: 'sonnet',
     build: { chassis: 'heavy', wheels: 'large', weapon: 'flipper', armour: 0 },
     strategy: 'Patient. Wait until they get close, then flip them. Push them into the pit.' },
 ];
