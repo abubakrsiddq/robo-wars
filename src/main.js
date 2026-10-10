@@ -126,13 +126,16 @@ function buildState(r, en) {
     grounded: isGrounded(x), blocking: x.blocking, blockHold: x.blockHold, dashT: x.dashT, dodgeT: x.dodgeT,
     spinFrac: x.spinner ? x.spin / CONFIG.weapons.spinner.spinMax : 0,
     attacking: (x.hammerT >= 0 && x.hammerT < CONFIG.weapons.hammer.anim.strike) || x.boostT > 0 || x.dashT > 0 || x.revT > 0,
-    moves: { attack: x.moves.attack.cd, dodge: x.moves.dodge.cd, block: x.moves.block.cd, dash: x.moves.dash.cd },
+    moves: { attack: x.moves.attack.cd, dodge: x.moves.dodge.cd, block: x.moves.block.cd, dash: x.moves.dash.cd,
+             attack2: x.moves.attack2 ? x.moves.attack2.cd : 0 },
+    weapon2: x.build.weapon2 || null,
   });
   const me = snap(r), enemy = snap(en), dx = enemy.x - me.x;
   return {
     me, enemy, dx, distance: Math.abs(dx), enemyInFront: dx * r.f > 0, isEnemyFlipped: en.flipped,
     weaponReady: r.cooldown <= 0, weaponRange: r.g.w / 2 + CONFIG.weapons[r.build.weapon].reach + en.g.w / 2,
     enemyRange: en.g.w / 2 + CONFIG.weapons[en.build.weapon].reach + r.g.w / 2,
+    weapon2Range: r.build.weapon2 ? r.g.w / 2 + CONFIG.weapons[r.build.weapon2].reach + en.g.w / 2 : 0,
     meInEnemyFront: -dx * en.f > 0, closing: -(enemy.vx - me.vx) * (Math.sign(dx) || 1),
     time: fight.clock, stallTime: fight.stall, arena: { left: fight.floorL, right: fight.floorR },
   };
@@ -151,12 +154,12 @@ function controlRobot(r, en, gdt) {
     r.spin = Math.min(wp.spinMax, r.spin + wp.spinUp * r.overdrive);
     Body.setAngularVelocity(r.spinner, -r.f * r.spin);   // front of drum moves upward -> launches
   }
-  if (r.hammerT >= 0) {
-    const hA = wp.anim, prev = r.hammerT; r.hammerT += gdt;
+  if (r.hammerT >= 0) {   // hammer/flipper timings come from their own CONFIG (either may be weapon2)
+    const hA = CONFIG.weapons.hammer.anim, prev = r.hammerT; r.hammerT += gdt;
     if (prev < hA.strike && r.hammerT >= hA.strike) hammerImpact(r, en);
     if (r.hammerT > hA.strike + hA.hold + hA.back) r.hammerT = -1;
   }
-  if (r.flipT >= 0) { r.flipT += gdt; const fA = wp.anim; if (r.flipT > fA.strike + fA.hold + fA.back) r.flipT = -1; }
+  if (r.flipT >= 0) { r.flipT += gdt; const fA = CONFIG.weapons.flipper.anim; if (r.flipT > fA.strike + fA.hold + fA.back) r.flipT = -1; }
   tickMoves(r, gdt);
 
   const act = F.phase === 'fight' ? getAction(r, en) : IDLE_ACTION;

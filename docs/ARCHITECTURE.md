@@ -16,11 +16,11 @@ The table is copied from each file's header block (the headers are the source of
 |---|---|---|---|---|
 | 1 | `src/config.js` | shared helpers + every tunable number. Owns: CONFIG (all balance/tuning numbers), the Matter.js destructuring, tiny math/random helpers | `Engine` `Bodies` `Body` `Composite` `Constraint` `Events` `Vertices` `clamp` `lerp` `rand` `pick` `CONFIG` | `Matter` |
 | 2 | `src/parts.js` | part costs, geometry (builder preview + physics), random builds. Owns: PARTS: cost, geometry, fromCards, randomBuild, randomName; name word lists | `PARTS` | `CONFIG` `pick` |
-| 3 | `src/ai.js` | English strategy -> behaviour, fallback brain, per-model AI brains. Owns: STRATEGY_PRESETS, strategyToBehaviour (TODO Claude API hook), FALLBACK, aiBehaviour (decide() returning actions) | `STRATEGY_PRESETS` `strategyToBehaviour` `FALLBACK` `aiBehaviour` | `CONFIG` `clamp` `lerp` `rand` `pick` |
+| 3 | `src/ai.js` | English strategy -> behaviour, fallback brain, per-model AI brains. Owns: STRATEGY_PRESETS, strategyToBehaviour (TODO Claude API hook), FALLBACK, aiBehaviour (decide() returning actions, incl. attack2 for weapon2) | `STRATEGY_PRESETS` `strategyToBehaviour` `FALLBACK` `aiBehaviour` | `CONFIG` `clamp` `lerp` `rand` `pick` |
 | 4 | `src/character.js` | build Matter bodies for a robot; draw robots and their cues. Owns: createRobot (runtime robot fields), robot-local geometry helpers, hammer/flip animation curves, drawRobot, chassis/wheel/spinner/shield/trail drawing | `createRobot` `rectCentre` `localToWorld` `hammerAngle` `flipAngle` `drawRobot` `drawChassisLocal` `drawWheel` `drawSpinner` | `CONFIG` `PARTS` `clamp` `lerp` `Bodies` `Body` `Composite` `Constraint` `Vertices` `ctx` `roundRect` `shade` `outlinedText` `fight` `AUTO` `AUTO_AI` `TAU` `aiBehaviour` `rand` `strategyToBehaviour` |
 | 5 | `src/arena.js` | physics world (floor, walls, pit gaps) + every arena's look (stadium, Taj Mahal, Hampi, Gomateshwara). Owns: createArenaWorld, arenaKey, per-arena art (backdrops, themes, live animation), DPR-aware cached layers, drawArena, drawArenaThumb | `createArenaWorld` `arenaKey` `drawArena` `drawArenaThumb` | `CONFIG` `clamp` `lerp` `Engine` `Bodies` `Composite` `ctx` `DPR` `fight` `roundRect` `mulberry32` `TAU` `pick` |
-| 6 | `src/controls.js` | keyboard input and the single action -> physics path. Owns: INPUT state, humanAction, getAction (human/AI/strategy -> action), cooldown ticking, applyAction (drive/hop/brake/attack/dodge/block/dash) | `INPUT` `IDLE_ACTION` `getAction` `humanAction` `setCd` `tickMoves` `applyAction` `isGrounded` | `CONFIG` `clamp` `Body` `fight` `FALLBACK` `buildState` `fireWeapon` `sparks` `dust` `floatText` `rectCentre` `setAllVelocity` |
-| 7 | `src/combat.js` | weapons, collision damage, win conditions. Owns: fireWeapon, weapon impacts, collision handling, damage/rage/block reduction, checkWin, endFight | `fireWeapon` `setAllVelocity` `selfRight` `flipperImpact` `hammerImpact` `handlePair` `damage` `checkWin` `endFight` | `CONFIG` `clamp` `rand` `Body` `Events` `fight` `AUTO_AI` `autolog` `localToWorld` `rectCentre` `sparks` `dust` `floatText` `setBanner` |
+| 6 | `src/controls.js` | keyboard input and the single action -> physics path. Owns: INPUT state, humanAction, getAction (human/AI/strategy -> action), cooldown ticking, applyAction (drive/hop/brake/attack/attack2/dodge/block/dash) | `INPUT` `IDLE_ACTION` `getAction` `humanAction` `setCd` `tickMoves` `applyAction` `isGrounded` | `CONFIG` `clamp` `Body` `fight` `FALLBACK` `buildState` `fireWeapon` `sparks` `dust` `floatText` `rectCentre` `setAllVelocity` |
+| 7 | `src/combat.js` | weapons, collision damage, win conditions. Owns: fireWeapon (slot 2 = build.weapon2), weapon impacts, collision handling, damage/rage/block reduction, checkWin, endFight | `fireWeapon` `setAllVelocity` `selfRight` `flipperImpact` `hammerImpact` `handlePair` `damage` `checkWin` `endFight` | `CONFIG` `clamp` `rand` `Body` `Events` `fight` `AUTO_AI` `autolog` `localToWorld` `rectCentre` `sparks` `dust` `floatText` `setBanner` |
 | 8 | `src/fx.js` | particles, floating text, banners, screen shake and generic canvas helpers. Owns: canvas handle (cv, ctx, DPR backing-store scale), particle/text/banner updates and drawing, roundRect/shade/outlinedText/esc/mulberry32 | `cv` `ctx` `DPR` `TAU` `mulberry32` `esc` `sparks` `dust` `floatText` `setBanner` `updateEffects` `drawParticles` `outlinedText` `roundRect` `shade` | `CONFIG` `clamp` `rand` `fight` `rectCentre` |
 | 9 | `src/hud.js` | in-fight HUD, intro countdown, banners, result screen. Owns: drawHUD (health bars, move bar), drawIntro, drawBanner, showResult | `skewPath` `drawHUD` `showResult` | `CONFIG` `clamp` `ctx` `fight` `AUTO` `autoNext` `roundRect` `outlinedText` `esc` `shade` `TAU` |
 | 10 | `src/builder.js` | card-based builder screen, previews, player setup, persistence. Owns: players[], cards, arena choice (getArena/setArena), setModel, localStorage save/load, builder panels, previews, arena picker | `cards` `players` `setModel` `getArena` `setArena` `saveChoices` `loadChoices` `buildPanel` `refreshPanel` `buildArenaPicker` | `CONFIG` `PARTS` `drawChassisLocal` `drawWheel` `drawSpinner` `arenaKey` `drawArenaThumb` |
@@ -57,38 +57,46 @@ Everyone else only reads them.
 | `slowMo`, `introSeconds` | main (fight loop) |
 | `arena` | arena (physics geometry, shared by every arena) |
 | `arenas` (default key, DPR cap, crowd gap, per-arena name/place/accent/theme colours) | arena (builder reads `list` for the picker; fx reads `maxDPR`) |
-| `ai` (per-model brains + builds) | ai |
+| `ai` (per-model brains + builds: haiku, sonnet, opus, fable; a build may carry `weapon2`) | ai |
 | `controls` (keys, hop, brake, attack, dodge, block, dash) | controls |
 | `builder` | builder |
 | `fx` | fx (+ character/arena for look-and-feel keys) |
 
 ### Build object
-`{ chassis: 'light'|'medium'|'heavy', wheels: 'small'|'large', weapon: 'spinner'|'hammer'|'flipper'|'ram', armour: 0|1|2 }`.
+`{ chassis: 'light'|'medium'|'heavy', wheels: 'small'|'large', weapon: 'spinner'|'hammer'|'flipper'|'ram', armour: 0|1|2, weapon2?: 'hammer' }`.
 Produced by `PARTS.fromCards(cards)`, `PARTS.randomBuild()` or `CONFIG.ai[model].build`.
 `PARTS.geometry(build, facing)` is the single source of robot shape (builder preview and physics).
+`weapon2` is optional and AI-only (Claude Fable: flipper + hammer). Spinner/flipper/ram all sit at the front, so the only valid
+second weapon is a top-mounted `hammer` next to one front weapon. `geometry` adds `g.hammer` when either slot is a hammer, and
+`drawChassisLocal` draws from the geometry, so both weapons show up in the fight and the builder preview. With no `weapon2`
+everything behaves exactly as before.
 
 ### players[]
 Defined in `builder.js`, read by `main.js` (`startFight`) and `character.js` (`createRobot`).
 ```
 players[0] = { id:0, color, facing:1,  name, controller:'human', build, strategy }
-players[1] = { id:1, color, facing:-1, name, controller:'ai', model:'haiku'|'sonnet'|'opus', build, strategy }
+players[1] = { id:1, color, facing:-1, name, controller:'ai', model:'haiku'|'sonnet'|'opus'|'fable', build, strategy }
 ```
 `controller` is `'human'` (keyboard), `'ai'` (`CONFIG.ai[model]`) or `'strategy'` (English text; used by `#auto`).
-`setModel(model)` copies label/color/build from `CONFIG.ai[model]` into `players[1]`.
+`setModel(model)` copies label/color/build from `CONFIG.ai[model]` into `players[1]`. The opponent cards, the HUD and the
+`#autoai` pairings all read `CONFIG.ai` dynamically (models: haiku Easy, sonnet Medium, opus Hard, fable Hard = Opus brain + dual weapons).
 
 ### Robot runtime object (`createRobot` in character.js; `fight.robots[i]`)
 - identity/physics: `player, name, color, build, g (geometry), f (facing +1/-1), body, wheels[], spinner, cons[], all[], rectOffset, totalMass`
 - health: `maxHp, hp, ghost (delayed bar), rage, stats{dealt, biggest, hits}`
-- weapon: `cooldown, spin, hammerT, flipT, boostT, overdrive, revT`
+- weapon: `cooldown, cooldown2 (weapon2), spin, hammerT, flipT, boostT, overdrive, revT` (hammer/flipper animations use their own
+  `CONFIG.weapons.*.anim`, so either can be the primary or weapon2)
 - state flags: `flipped, flippedTime, mode, warned`
 - controller: `controller, model, behaviour` (`{params, tags?, decide}`)
 - action system (read by the HUD): `blocking, blockHold (0..1 stamina used), dashT, dodgeT, hopCd, dashDir, dodgeDir, dashHit`
-- `moves: { attack, dodge, block, dash }`, each `{ cd (seconds left, 0 = ready), max (full cooldown), key ('W'|'A'|'S'|'D') }`
+- `moves: { attack, dodge, block, dash, attack2? }`, each `{ cd (seconds left, 0 = ready), max (full cooldown), key ('W'|'A'|'S'|'D') }`;
+  `attack2` (key `''`) exists only when `build.weapon2` is set (the HUD move bar only draws the human's four tiles)
 - bookkeeping: `lastSpinHit, lastLand, lastBump, lastHitBy, lastHitAt, lastBlockText`
 - every Matter body carries `body.robot` and `body.robo.role` (`chassis|wheel|spinner|ram|flipper`)
 
 ### Action object (one per robot per tick; consumed only by `applyAction`)
-`{ drive: -1..1, jump, attack, dodge, block, dash, brake, mode }`. `drive` is a screen direction for human/AI actions
+`{ drive: -1..1, jump, attack, attack2, dodge, block, dash, brake, mode }`. `attack2` fires `build.weapon2` via
+`fireWeapon(r, en, 2)` (own `cooldown2`); it is ignored when the robot has no `weapon2` (the human never sets it). `drive` is a screen direction for human/AI actions
 (for `strategy` bots `decide` returns drive relative to facing and `getAction` multiplies by `r.f`). `IDLE_ACTION` is the all-false default.
 Human actions come from `humanAction` (keys in `CONFIG.controls.keys`, with an input buffer). AI/strategy actions come from `behaviour.decide(state)`.
 `decide` is always called inside try/catch with `FALLBACK`.
@@ -96,11 +104,12 @@ Human actions come from `humanAction` (keys in `CONFIG.controls.keys`, with an i
 ### `state` passed to `decide()` (built by `buildState(r, en)` in main.js)
 ```
 { me, enemy,   // snapshots: x,y,vx,vy,angle,health,maxHealth,hpPct,facing,flipped,rage,weapon,grounded,
-               //   blocking,blockHold,dashT,dodgeT,spinFrac,attacking, moves{attack,dodge,block,dash} (cooldown seconds)
-  dx, distance, enemyInFront, isEnemyFlipped, weaponReady, weaponRange, enemyRange,
+               //   blocking,blockHold,dashT,dodgeT,spinFrac,attacking, weapon2 (or null),
+               //   moves{attack,dodge,block,dash,attack2} (cooldown seconds; attack2 = 0 without weapon2)
+  dx, distance, enemyInFront, isEnemyFlipped, weaponReady, weaponRange, enemyRange, weapon2Range (0 without weapon2),
   meInEnemyFront, closing, time, stallTime, arena:{left,right} }
 ```
-`decide(state)` returns `{ drive, fire (strategy) | attack/jump/dodge/block/dash/brake (ai), mode }`.
+`decide(state)` returns `{ drive, fire (strategy) | attack/attack2/jump/dodge/block/dash/brake (ai), mode }`.
 `strategyToBehaviour(text)` returns `{ params, tags, decide }` (keep the `TODO: replace with Claude API call` marker in `ai.js`).
 
 ### Fight object (`fight`, main.js)

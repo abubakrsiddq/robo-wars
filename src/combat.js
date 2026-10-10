@@ -1,32 +1,35 @@
 'use strict';
 // ============================================================
 // COMBAT: weapons, collision damage, win conditions
-// OWNS:    fireWeapon, weapon impacts, collision handling, damage/rage/block reduction, checkWin, endFight
+// OWNS:    fireWeapon (slot 2 = build.weapon2), weapon impacts, collision handling, damage/rage/block reduction, checkWin, endFight
 // EXPORTS: fireWeapon, setAllVelocity, selfRight, flipperImpact, hammerImpact, handlePair, damage, checkWin, endFight
 // READS:   CONFIG, clamp, rand, Body, Events, fight, AUTO_AI, autolog, localToWorld, rectCentre, sparks, dust, floatText, setBanner
 // ============================================================
-function fireWeapon(r, en) {
-  const wp = CONFIG.weapons[r.build.weapon];
-  switch (r.build.weapon) {
+// slot 2 fires the optional second weapon (build.weapon2, AI only) with its own cooldown2 / moves.attack2
+function fireWeapon(r, en, slot) {
+  const key = slot === 2 ? r.build.weapon2 : r.build.weapon, wp = CONFIG.weapons[key];
+  let cd;
+  switch (key) {
     case 'hammer':
-      r.hammerT = 0; r.cooldown = Math.max(wp.cooldown / r.overdrive, animLen(wp));
+      r.hammerT = 0; cd = Math.max(wp.cooldown / r.overdrive, animLen(wp));
       if (r.flipped) selfRight(r, 0.75);
       break;
     case 'flipper':
-      r.flipT = 0; r.cooldown = Math.max(wp.cooldown / r.overdrive, animLen(wp));
+      r.flipT = 0; cd = Math.max(wp.cooldown / r.overdrive, animLen(wp));
       if (r.flipped) selfRight(r, 1); else flipperImpact(r, en);
       break;
     case 'ram':
       if (r.flipped) return;
-      r.boostT = wp.boostTime; r.cooldown = wp.cooldown;
+      r.boostT = wp.boostTime; cd = wp.cooldown;
       break;
     default:   // spinner is always on: strategy bots just tick; human/AI get a rev burst
-      if (r.controller === 'strategy') { r.cooldown = 0.5; break; }
-      r.spin = wp.spinMax; r.revT = CONFIG.controls.attack.revTime; r.cooldown = CONFIG.controls.attack.revCooldown;
+      if (r.controller === 'strategy') { cd = 0.5; break; }
+      r.spin = wp.spinMax; r.revT = CONFIG.controls.attack.revTime; cd = CONFIG.controls.attack.revCooldown;
       sparks(r.spinner.position.x, r.spinner.position.y, 5, '#9fe8ff');
       floatText(r.spinner.position.x, r.spinner.position.y - 40, 'REV!', '#9fe8ff', 16);
   }
-  r.moves.attack.max = Math.max(r.cooldown, 0.01);
+  if (slot === 2) r.cooldown2 = cd; else r.cooldown = cd;
+  r.moves[slot === 2 ? 'attack2' : 'attack'].max = Math.max(cd, 0.01);
 }
 
 // total swing time of a weapon animation: refire is blocked until it ends

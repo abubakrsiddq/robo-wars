@@ -50,7 +50,7 @@ function createRobot(player, x) {
     rectOffset: rel(rect.position), all: [body, ...wheels, ...(spinner ? [spinner] : [])],
     maxHp: ch.hp, hp: ch.hp, ghost: ch.hp,
     overdrive: controller === 'strategy' ? PARTS.overdrive(b) : C.overdrive,
-    cooldown: 0.5, spin: 0, hammerT: -1, flipT: -1, boostT: 0, flipped: false, flippedTime: 0,
+    cooldown: 0.5, cooldown2: 0, spin: 0, hammerT: -1, flipT: -1, boostT: 0, flipped: false, flippedTime: 0,
     rage: false, lastSpinHit: -9, lastLand: -9, lastBump: -9, lastHitBy: null, lastHitAt: -9,
     mode: '', warned: false, controller, model,
     behaviour: controller === 'ai' ? aiBehaviour(model) : controller === 'strategy' ? strategyToBehaviour(player.strategy) : null,
@@ -62,6 +62,7 @@ function createRobot(player, x) {
       dodge:  { cd: 0, max: C.dodge.cooldown, key: 'A' },
       block:  { cd: 0, max: C.block.cooldown, key: 'S' },
       dash:   { cd: 0, max: C.dash.cooldown, key: 'D' },
+      ...(b.weapon2 ? { attack2: { cd: 0, max: CONFIG.weapons[b.weapon2].cooldown, key: '' } } : {}),   // AI-only 2nd weapon (no HUD tile)
     },
     stats: { dealt: 0, biggest: 0, hits: 0 },
   };
@@ -177,6 +178,7 @@ function drawShield(r, c) {
 }
 
 // Shared by builder preview and fight: draws chassis, wedge, armour, hammer in chassis-local space.
+// Driven by the geometry, so a dual-weapon build (front weapon + weapon2 hammer) draws both.
 // anim: { hammer, flip, boost, flash?, t? }
 function drawChassisLocal(c, b, g, color, anim) {
   const { w, h, f } = g, t = anim.t || 0, dark = '#0b0d14';
