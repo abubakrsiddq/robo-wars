@@ -55,6 +55,7 @@ textarea{width:100%;min-height:64px;background:#0b0e17;border:1px solid #2a3150;
 #fightBtn{padding:16px 22px;font-size:22px;font-weight:900;letter-spacing:2px;border:none;border-radius:12px;background:linear-gradient(180deg,#ffd23f,#ff8a1f);color:#1a1000;text-transform:uppercase;box-shadow:0 6px 0 #a34d00}
 #fightBtn:disabled{filter:grayscale(1);opacity:.35;cursor:not-allowed;box-shadow:none}
 .hint{font-size:11px;color:var(--muted)}
+#arenaPick{max-width:760px;margin:12px auto 0;padding:0 20px}
 
 #fightScreen{display:none;padding:12px}
 #arena{display:block;width:100%;max-width:1200px;margin:0 auto;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.6);background:#05060a}
@@ -81,6 +82,8 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
   <p>Build it. Brief it. Watch it brawl.</p>
 </header>
 
+<div id="arenaPick"></div>
+
 <div id="builderScreen">
   <div class="panel p1" id="panel0"></div>
   <div class="center">
@@ -95,7 +98,7 @@ th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;le
 <div id="fightScreen">
   <canvas id="arena" width="1200" height="600"></canvas>
   <div class="fight-bar">
-    <span>Win by KO · Flip (5 s stuck) · Pit · or HP% at time-out</span>
+    <span><b id="arenaName"></b> · Win by KO · Flip (5 s stuck) · Pit · or HP% at time-out</span>
     <button class="small-btn" id="abortBtn">✕ Back to Builder</button>
   </div>
 </div>
@@ -511,7 +514,9 @@ function startFight() {
     engine, robots: [r1, r2], floorL, floorR, phase: 'intro', introT: CONFIG.introSeconds,
     time: CONFIG.fightSeconds, clock: 0, stall: 0, koT: 0, slow: false, winner: null, method: '',
     shake: 0, particles: [], texts: [], banner: null, last: performance.now(), acc: 0,
-    crowd: Array.from({ length: 140 }, (_, k) => ({ x: (k / 140) * A.w + rand(-4, 4), y: rand(360, 420), r: rand(7, 11), s: rand(0.12, 0.3) })),
+    // crowd stands either side so the landmark in the middle stays visible
+    crowd: Array.from({ length: 140 }, (_, k) => ({ x: (k / 140) * A.w + rand(-4, 4), y: rand(392, 424), r: rand(6, 9), s: rand(0.55, 0.9) }))
+      .filter(c => c.x < 360 || c.x > 840),
   };
   setBanner(`${r1.name}  VS  ${r2.name}`, '#ffffff', 1.4, 'ROUND 1');
   Events.on(engine, 'collisionStart', e => e.pairs.forEach(pr => handlePair(pr, false)));
@@ -519,6 +524,7 @@ function startFight() {
   document.getElementById('builderScreen').style.display = 'none';
   document.querySelector('header').style.display = 'none';
   document.getElementById('result').style.display = 'none';
+  document.getElementById('arenaName').textContent = currentArena.name + ' · ' + currentArena.place;
   document.getElementById('fightScreen').style.display = 'block';
   if (AUTO) { const f = fight; setTimeout(() => fight === f && frame(0), 0); } else rafId = requestAnimationFrame(frame);
 }
@@ -815,6 +821,8 @@ function endFight(winner, method) {
 // EFFECTS: particles, floating text, banners, shake + all drawing
 // ============================================================
 const cv = document.getElementById('arena'), ctx = cv.getContext('2d');
+const DPR = Math.min(2, window.devicePixelRatio || 1);   // render at screen density so the arena isn't blurry
+cv.width = CONFIG.arena.w * DPR; cv.height = CONFIG.arena.h * DPR;
 
 function sparks(x, y, dmg, color) {
   if (!fight) return;
@@ -841,6 +849,7 @@ function updateEffects(gdt, dt) {
 
 function render() {
   const F = fight, A = CONFIG.arena;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.save();
   if (F.shake > 0.3) ctx.translate(rand(-F.shake, F.shake), rand(-F.shake, F.shake));
   drawArena();
@@ -866,20 +875,382 @@ function outlinedText(text, x, y, font, color, lw) {
   ctx.fillStyle = color; ctx.fillText(text, x, y);
 }
 
+// ============================================================
+// ARENAS: 2D backdrops (MVP). Physics, pits and floor are shared; only the scenery changes.
+// Each backdrop fills the canvas, then crowd, LED board, pits and floor draw on top.
+// ============================================================
+const ARENAS = [
+  { key: 'taj', name: 'Taj Mahal', place: 'Agra, Uttar Pradesh', scene: tajScene, live: tajLive,
+    theme: { crowd: '58,36,64', board: '#1a1024', ground: '#5d7a3e', floor: ['#f2ebe0', '#b5a794'], edge: '#d4a84a',
+             pit: ['#2a5a80', '#0b1a28'], water: true, pitLabel: 'POOL', wall: ['#7a3326', '#9a4a36'] } },
+  { key: 'hampi', name: 'Hampi', place: 'Vijayanagara, Karnataka', scene: hampiScene, live: hampiLive,
+    theme: { crowd: '74,40,20', board: '#24150c', ground: '#a8794a', floor: ['#b39a7c', '#5e4a38'], edge: '#e6b072',
+             pit: ['#2b6276', '#0e2630'], water: true, pitLabel: 'RIVER', wall: ['#6b5444', '#86705c'] } },
+  { key: 'gomateshwara', name: 'Gomateshwara Statue', place: 'Shravanabelagola, Karnataka', scene: gomatScene, live: gomatLive,
+    theme: { crowd: '38,46,42', board: '#141a18', ground: '#8f897a', floor: ['#d8d1c1', '#7a7468'], edge: '#e8c35a',
+             pit: ['#3a3630', '#0e0c0a'], water: false, pitLabel: 'LEDGE', wall: ['#5d5850', '#78726a'] } },
+];
+let currentArena = ARENAS[0];
+
+// Static scenery is painted once per arena into a high-res offscreen canvas; live() adds cheap animation per frame
+function drawBackdrop(c, A, t) {
+  const a = currentArena;
+  if (!a.cache) {
+    const off = document.createElement('canvas');
+    off.width = A.w * DPR; off.height = A.h * DPR;
+    const oc = off.getContext('2d'); oc.scale(DPR, DPR);
+    a.scene(oc, A);
+    a.cache = off;
+  }
+  c.fillStyle = '#05060a'; c.fillRect(-20, -20, A.w + 40, A.h + 40);
+  c.drawImage(a.cache, 0, 0, A.w, A.h);
+  a.live(c, A, t);
+}
+
+// ---- drawing helpers ----
+function grad(c, x0, y0, x1, y1, stops) {
+  const g = c.createLinearGradient(x0, y0, x1, y1);
+  stops.forEach((s, i) => g.addColorStop(i / (stops.length - 1), s));
+  return g;
+}
+const vGrad = (c, y0, y1, stops) => grad(c, 0, y0, 0, y1, stops);
+const hGrad = (c, x0, x1, stops) => grad(c, x0, 0, x1, 0, stops);
+function glow(c, x, y, r, rgb, a) {
+  const g = c.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+  c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function seeded(seed) {   // deterministic random so scenery is identical every match
+  return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+}
+function arch(c, x, y, w, h) {   // pointed (Mughal-style) arch, bottom-left at (x, y)
+  c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - h + w * 0.55);
+  c.quadraticCurveTo(x, y - h + w * 0.1, x + w / 2, y - h);
+  c.quadraticCurveTo(x + w, y - h + w * 0.1, x + w, y - h + w * 0.55);
+  c.lineTo(x + w, y); c.closePath();
+}
+function boulder(c, x, y, rx, ry, cols, rnd) {   // irregular rounded rock lit from the upper left
+  const n = 10, pts = [];
+  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, k = 0.85 + rnd() * 0.25; pts.push({ x: x + Math.cos(a) * rx * k, y: y + Math.sin(a) * ry * k }); }
+  const mid = (p, q) => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 });
+  c.beginPath();
+  let s = mid(pts[n - 1], pts[0]); c.moveTo(s.x, s.y);
+  for (let i = 0; i < n; i++) { const q = mid(pts[i], pts[(i + 1) % n]); c.quadraticCurveTo(pts[i].x, pts[i].y, q.x, q.y); }
+  c.closePath();
+  const g = c.createRadialGradient(x - rx * 0.4, y - ry * 0.45, 2, x, y, Math.max(rx, ry) * 1.15);
+  g.addColorStop(0, cols[0]); g.addColorStop(0.5, cols[1]); g.addColorStop(1, cols[2]);
+  c.fillStyle = g; c.fill();
+}
+function cloud(c, x, y, s, top, bottom) {
+  c.fillStyle = vGrad(c, y - 30 * s, y + 14 * s, [top, bottom]);
+  [[0, 0, 34], [-36, 6, 24], [36, 6, 26], [-14, -16, 24], [16, -12, 22]].forEach(([dx, dy, r]) => {
+    c.beginPath(); c.arc(x + dx * s, y + dy * s, r * s, 0, Math.PI * 2); c.fill();
+  });
+}
+function birds(c, t, n, y0, color) {
+  c.strokeStyle = color; c.lineWidth = 1.6; c.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const x = ((t * 28 + i * 190) % 1500) - 150, y = y0 + i * 14 + Math.sin(t * 1.3 + i) * 8, f = Math.sin(t * 9 + i * 2) * 3;
+    c.beginPath(); c.moveTo(x - 7, y - f); c.quadraticCurveTo(x - 3, y - 3, x, y); c.quadraticCurveTo(x + 3, y - 3, x + 7, y - f); c.stroke();
+  }
+}
+function palm(c, x, base, h, lean) {
+  const tx = x + lean, ty = base - h;
+  c.strokeStyle = '#6b4a2a'; c.lineWidth = 7; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x, base); c.quadraticCurveTo(x + lean * 0.2, base - h * 0.6, tx, ty); c.stroke();
+  c.strokeStyle = '#2f6a2c'; c.lineWidth = 4;
+  for (let k = 0; k < 8; k++) {
+    const a = -Math.PI / 2 + (k - 3.5) * 0.42, len = 46;
+    const ex = tx + Math.cos(a) * len * 1.2, ey = ty + Math.sin(a) * len * 0.5 + 24;
+    c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(tx + Math.cos(a) * len * 0.7, ty + Math.sin(a) * len * 0.6 - 10, ex, ey); c.stroke();
+  }
+}
+
+// ---- Taj Mahal: golden-hour sunset, marble lit from the left ----
+function minaret(c, x, w, top, base) {
+  c.fillStyle = hGrad(c, x - w / 2, x + w / 2, ['#fff6ea', '#eadbca', '#bea8a2']);
+  c.beginPath(); c.moveTo(x - w / 2, base); c.lineTo(x - w * 0.38, top); c.lineTo(x + w * 0.38, top); c.lineTo(x + w / 2, base); c.fill();
+  for (const f of [0.3, 0.6, 0.88]) {
+    const y = base - (base - top) * f;
+    c.fillStyle = '#fbf3e8'; c.fillRect(x - w * 0.62, y - 3, w * 1.24, 5);
+    c.fillStyle = 'rgba(90,60,70,.3)'; c.fillRect(x - w * 0.55, y + 2, w * 1.1, 3);
+  }
+  c.fillStyle = '#efe2d2';
+  c.fillRect(x - w * 0.48, top - 13, 3, 13); c.fillRect(x + w * 0.48 - 3, top - 13, 3, 13);
+  c.fillStyle = hGrad(c, x - w / 2, x + w / 2, ['#fff8ee', '#e2d0c4']);
+  c.beginPath(); c.ellipse(x, top - 12, w * 0.56, w * 0.5, 0, Math.PI, 2 * Math.PI); c.fill();
+  c.fillStyle = '#d9b24e'; c.fillRect(x - 1, top - 12 - w * 0.5 - 9, 2, 10);
+}
+function tajScene(c, A) {
+  c.fillStyle = vGrad(c, 0, 432, ['#1c2457', '#4f3b78', '#c26c7e', '#f2a678', '#ffd9a0']);
+  c.fillRect(0, 0, A.w, 432);
+  glow(c, 170, 352, 300, '255,214,150', 0.6);
+  c.fillStyle = '#fff1d0'; c.beginPath(); c.arc(170, 352, 24, 0, Math.PI * 2); c.fill();
+  const r = seeded(7);
+  for (let i = 0; i < 50; i++) { c.fillStyle = `rgba(255,255,255,${0.15 + r() * 0.5})`; c.fillRect(r() * A.w, r() * 140, 1.6, 1.6); }
+  [[280, 150, 230], [900, 118, 270], [660, 196, 170], [1080, 210, 140]].forEach(([x, y, w]) => {
+    c.fillStyle = 'rgba(255,180,170,.2)'; c.beginPath(); c.ellipse(x, y, w, 8, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,230,205,.18)'; c.beginPath(); c.ellipse(x + 30, y - 5, w * 0.6, 4, 0, 0, Math.PI * 2); c.fill();
+  });
+  // distant tree line
+  c.fillStyle = '#5a3c5c';
+  c.beginPath(); c.moveTo(0, 410);
+  for (let x = 0; x <= A.w; x += 12) c.lineTo(x, 380 - 9 * Math.abs(Math.sin(x * 0.07)) - 5 * Math.sin(x * 0.019));
+  c.lineTo(A.w, 410); c.fill();
+  // red sandstone mosque (left) and jawab (right)
+  [70, 950].forEach(x => {
+    c.fillStyle = vGrad(c, 318, 404, ['#c06446', '#7a3326']); c.fillRect(x, 318, 180, 86);
+    c.fillStyle = '#e9d9c4'; c.fillRect(x, 316, 180, 4);
+    c.fillStyle = '#4e1e16'; for (let k = 0; k < 3; k++) { arch(c, x + 20 + k * 52, 400, 36, 58); c.fill(); }
+    c.fillStyle = hGrad(c, x, x + 180, ['#fff4e6', '#d8c4b8']);
+    [[x + 42, 18], [x + 90, 27], [x + 138, 18]].forEach(([dx, rr]) => { c.beginPath(); c.ellipse(dx, 316, rr, rr * 1.15, 0, Math.PI, 2 * Math.PI); c.fill(); });
+  });
+  // back minarets, plinth, front minarets frame the tomb
+  minaret(c, 404, 17, 196, 376); minaret(c, 796, 17, 196, 376);
+  c.fillStyle = hGrad(c, 330, 870, ['#fbf1e4', '#efe1d0', '#cdb8ae']); c.fillRect(330, 372, 540, 30);
+  c.fillStyle = 'rgba(150,110,105,.35)';
+  for (let x = 340; x < 860; x += 30) { arch(c, x, 398, 18, 18); c.fill(); }
+  // main tomb body
+  const marble = hGrad(c, 450, 750, ['#fff8ee', '#f3e6d6', '#cfb9b0']);
+  c.fillStyle = marble; c.fillRect(450, 250, 300, 122);
+  c.fillStyle = 'rgba(110,80,95,.16)'; c.fillRect(722, 250, 28, 122);
+  c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(450, 250, 26, 122);
+  [[478, 44], [668, 44], [452, 24], [724, 24]].forEach(([x, w]) => {
+    c.fillStyle = 'rgba(160,125,120,.42)'; arch(c, x, 312, w, 54); c.fill(); arch(c, x, 368, w, 50); c.fill();
+  });
+  // central pishtaq (great arch)
+  c.fillStyle = '#fffaf2'; c.fillRect(540, 230, 120, 142);
+  c.strokeStyle = '#c9b090'; c.lineWidth = 2; c.strokeRect(547, 237, 106, 135);
+  c.fillStyle = vGrad(c, 250, 372, ['#a98e8c', '#dccbc0']); arch(c, 562, 372, 76, 120); c.fill();
+  c.fillStyle = '#6e5658'; arch(c, 584, 372, 32, 54); c.fill();
+  c.fillStyle = '#f7eee2'; c.fillRect(448, 245, 304, 6);
+  [452, 546, 652, 746].forEach(x => c.fillRect(x - 2, 230, 4, 16));
+  // roof chhatris
+  [486, 714].forEach(x => {
+    c.fillStyle = '#efe2d2'; c.fillRect(x - 16, 222, 32, 24);
+    c.fillStyle = 'rgba(150,120,115,.5)'; arch(c, x - 8, 246, 16, 20); c.fill();
+    c.fillStyle = hGrad(c, x - 20, x + 20, ['#fff8ee', '#d9c6bc']);
+    c.beginPath(); c.ellipse(x, 222, 20, 20, 0, Math.PI, 2 * Math.PI); c.fill();
+    c.fillStyle = '#d9b24e'; c.fillRect(x - 1, 194, 2, 9);
+  });
+  // drum and onion dome
+  c.fillStyle = hGrad(c, 538, 662, ['#fff8ee', '#efe0d0', '#cdb7ae']); c.fillRect(538, 198, 124, 48);
+  c.fillStyle = 'rgba(150,120,110,.35)'; c.fillRect(538, 205, 124, 2); c.fillRect(538, 238, 124, 2);
+  c.beginPath(); c.moveTo(540, 202);
+  c.bezierCurveTo(516, 178, 514, 128, 562, 112);
+  c.bezierCurveTo(584, 104, 596, 100, 600, 94);
+  c.bezierCurveTo(604, 100, 616, 104, 638, 112);
+  c.bezierCurveTo(686, 128, 684, 178, 660, 202); c.closePath();
+  const dg = c.createRadialGradient(566, 138, 6, 600, 160, 96);
+  dg.addColorStop(0, '#fffbf4'); dg.addColorStop(0.6, '#efdfd0'); dg.addColorStop(1, '#b49c9a');
+  c.fillStyle = dg; c.fill();
+  c.fillStyle = 'rgba(160,120,110,.35)';
+  for (let k = 0; k < 7; k++) { c.beginPath(); c.ellipse(552 + k * 16, 202, 7, 5, 0, Math.PI, 2 * Math.PI); c.fill(); }
+  c.fillStyle = '#d9b24e'; c.fillRect(598.5, 72, 3, 24);
+  [90, 82].forEach(y => { c.beginPath(); c.arc(600, y, 3.5, 0, Math.PI * 2); c.fill(); });
+  minaret(c, 352, 24, 168, 400); minaret(c, 848, 24, 168, 400);
+  // garden, reflecting pool, cypress rows
+  c.fillStyle = vGrad(c, 400, 432, ['#4f6b36', '#36502a']); c.fillRect(0, 400, A.w, 32);
+  c.save();
+  c.beginPath(); c.moveTo(574, 402); c.lineTo(626, 402); c.lineTo(668, 432); c.lineTo(532, 432); c.closePath(); c.clip();
+  c.fillStyle = vGrad(c, 402, 432, ['#e8b49a', '#6f8fb4', '#3c5f86']); c.fillRect(530, 400, 140, 34);
+  c.fillStyle = 'rgba(255,248,236,.55)';
+  c.beginPath(); c.ellipse(600, 408, 22, 7, 0, 0, Math.PI * 2); c.fill(); c.fillRect(592, 402, 16, 4);
+  c.restore();
+  for (let k = 0; k < 6; k++) {
+    const h = 34 + k * 5, rw = 5 + k * 0.7;
+    [560 - k * 32, 640 + k * 32].forEach(x => {
+      c.fillStyle = hGrad(c, x - rw, x + rw, ['#3d6040', '#1c3322']);
+      c.beginPath(); c.ellipse(x, 432 - h / 2, rw, h / 2, 0, 0, Math.PI * 2); c.fill();
+    });
+  }
+}
+function tajLive(c, A, t) {
+  c.fillStyle = 'rgba(255,255,255,.22)';
+  for (let k = 0; k < 4; k++) { const y = 410 + k * 6, w = 12 + k * 6; c.fillRect(600 - w / 2 + Math.sin(t * 2 + k) * (6 + k * 3), y, w, 1.5); }
+  birds(c, t, 3, 130, 'rgba(40,20,40,.7)');
+}
+
+// ---- Hampi: bright afternoon, granite boulders, Virupaksha gopuram ----
+const HAMPI_ROCK = ['#e8ad7a', '#b7744a', '#64381e'];
+function hampiScene(c, A) {
+  c.fillStyle = vGrad(c, 0, 432, ['#3a84c4', '#78b4de', '#c8e2ee', '#ffe2b0']); c.fillRect(0, 0, A.w, 432);
+  glow(c, 200, 96, 220, '255,244,210', 0.7);
+  c.fillStyle = '#fff6dc'; c.beginPath(); c.arc(200, 96, 32, 0, Math.PI * 2); c.fill();
+  // hazy far hills
+  c.fillStyle = '#b9a59a';
+  c.beginPath(); c.moveTo(0, 410);
+  for (let x = 0; x <= A.w; x += 10) c.lineTo(x, 330 - 40 * Math.sin(x * 0.006 + 1) - 14 * Math.sin(x * 0.03));
+  c.lineTo(A.w, 410); c.fill();
+  // boulder heaps on both sides (bigger and lower = closer)
+  const r = seeded(11);
+  [[0, 360], [850, 350]].forEach(([x0, w]) => {
+    const rocks = Array.from({ length: 22 }, () => ({ x: x0 + r() * w, y: 300 + r() * 104, s: 16 + r() * 38 })).sort((a, b) => a.y - b.y);
+    rocks.forEach(k => boulder(c, k.x, k.y, k.s * 1.25, k.s, HAMPI_ROCK, r));
+  });
+  palm(c, 330, 404, 120, 18); palm(c, 880, 404, 104, -14);
+  // Vittala stone chariot
+  c.fillStyle = vGrad(c, 384, 404, ['#a39684', '#6d6253']); c.fillRect(378, 384, 104, 20);
+  c.fillStyle = hGrad(c, 392, 468, ['#c4b6a0', '#9d8f7c', '#6f6455']); c.fillRect(392, 338, 76, 46);
+  c.fillStyle = 'rgba(60,50,40,.4)'; for (let y = 346; y < 384; y += 9) c.fillRect(392, y, 76, 2);
+  c.fillStyle = hGrad(c, 400, 460, ['#c4b6a0', '#7d7262']);
+  c.beginPath(); c.moveTo(398, 338); c.lineTo(408, 316); c.lineTo(452, 316); c.lineTo(462, 338); c.fill();
+  c.beginPath(); c.ellipse(430, 316, 22, 14, 0, Math.PI, 2 * Math.PI); c.fill();
+  [402, 458].forEach(x => {
+    c.fillStyle = '#8a7e6c'; c.beginPath(); c.arc(x, 390, 17, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#5c5246'; c.lineWidth = 2;
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; c.beginPath(); c.moveTo(x, 390); c.lineTo(x + Math.cos(a) * 15, 390 + Math.sin(a) * 15); c.stroke(); }
+    c.beginPath(); c.arc(x, 390, 15, 0, Math.PI * 2); c.stroke();
+  });
+  // ruined pillared mandapa
+  c.fillStyle = hGrad(c, 716, 846, ['#b7a58e', '#7d6c58']);
+  [728, 758, 788, 818].forEach(x => { c.fillRect(x, 330, 12, 74); c.fillRect(x - 4, 324, 20, 7); });
+  c.fillRect(716, 314, 130, 11); c.fillRect(724, 306, 78, 8);
+  // gopuram: 9 whitewashed tiers, lit from the left
+  const X = 620;
+  c.fillStyle = hGrad(c, 545, 695, ['#a79680', '#7a6a56']); c.fillRect(545, 330, 150, 74);
+  c.fillStyle = '#2e2218'; arch(c, 604, 404, 32, 56); c.fill();
+  for (let i = 0; i < 9; i++) {
+    const y1 = 330 - i * 20, y0 = y1 - 20, w1 = 140 - i * 9.5, w0 = w1 - 9.5;
+    c.fillStyle = hGrad(c, X - w1 / 2, X + w1 / 2, ['#f7ecd8', '#e6d4b6', '#a68f6e']);
+    c.beginPath(); c.moveTo(X - w1 / 2, y1); c.lineTo(X - w0 / 2, y0); c.lineTo(X + w0 / 2, y0); c.lineTo(X + w1 / 2, y1); c.fill();
+    c.fillStyle = 'rgba(80,60,40,.45)'; c.fillRect(X - w1 / 2, y1 - 2, w1, 2);
+    c.fillStyle = 'rgba(90,70,50,.5)';
+    for (let x = X - w0 / 2 + 5; x < X + w0 / 2 - 8; x += 13) c.fillRect(x, y0 + 6, 5, 9);
+  }
+  c.fillStyle = hGrad(c, X - 32, X + 32, ['#f4e8d0', '#b9a482']);
+  c.fillRect(X - 30, 134, 60, 16);
+  c.beginPath(); c.ellipse(X, 134, 32, 12, 0, Math.PI, 2 * Math.PI); c.fill();
+  c.fillStyle = '#d9a83e';
+  for (let x = X - 24; x <= X + 24; x += 12) { c.fillRect(x - 1, 112, 2, 10); c.beginPath(); c.arc(x, 114, 3, 0, Math.PI * 2); c.fill(); }
+  // Tungabhadra river with rocks
+  c.fillStyle = vGrad(c, 404, 432, ['#7cb4c8', '#2f6a80']); c.fillRect(0, 404, A.w, 28);
+  [[470, 414, 16], [700, 420, 12], [540, 424, 9]].forEach(([x, y, s]) => boulder(c, x, y, s * 1.4, s * 0.8, HAMPI_ROCK, r));
+}
+function hampiLive(c, A, t) {
+  [[0, 90, 1], [460, 64, 1.3], [860, 140, 0.8]].forEach(([x, y, s]) =>
+    cloud(c, ((x + t * 8) % (A.w + 300)) - 150, y, s, 'rgba(255,255,255,.95)', 'rgba(220,226,236,.9)'));
+  c.fillStyle = 'rgba(255,255,255,.25)';
+  for (let y = 410; y < 432; y += 6) c.fillRect(((t * 30 + y * 13) % (A.w + 100)) - 50, y, 60, 1.5);
+  birds(c, t, 2, 170, 'rgba(50,40,30,.75)');
+  // coracle drifting on the river
+  const cx = 360 + ((t * 10) % 480);
+  c.fillStyle = '#5a3a1e'; c.beginPath(); c.ellipse(cx, 420, 13, 5, 0, 0, Math.PI); c.fill();
+}
+
+// ---- Gomateshwara: morning light from the right, statue on Vindhyagiri hill ----
+function gomatScene(c, A) {
+  c.fillStyle = vGrad(c, 0, 432, ['#6ca4d4', '#a9cde6', '#e4eef0', '#fbe3c0']); c.fillRect(0, 0, A.w, 432);
+  glow(c, 1010, 250, 280, '255,226,170', 0.65);
+  c.fillStyle = '#fff3d8'; c.beginPath(); c.arc(1010, 250, 26, 0, Math.PI * 2); c.fill();
+  // Chandragiri hill in the haze
+  c.fillStyle = '#9aaab2'; c.beginPath(); c.ellipse(210, 420, 320, 110, 0, Math.PI, 2 * Math.PI); c.fill();
+  c.fillStyle = '#8796a0';
+  [[150, 314], [196, 310], [246, 314]].forEach(([x, y]) => { c.fillRect(x - 8, y, 16, 12); c.beginPath(); c.moveTo(x - 9, y); c.lineTo(x, y - 12); c.lineTo(x + 9, y); c.fill(); });
+  c.fillStyle = '#8fa396';
+  c.beginPath(); c.moveTo(0, 432);
+  for (let x = 0; x <= A.w; x += 10) c.lineTo(x, 392 - 6 * Math.abs(Math.sin(x * 0.09)));
+  c.lineTo(A.w, 432); c.fill();
+  // Vindhyagiri granite dome, lit from the right
+  c.fillStyle = hGrad(c, 330, 1000, ['#5f594e', '#8a8477', '#bdb6a6']);
+  c.beginPath(); c.moveTo(300, 432); c.bezierCurveTo(400, 330, 520, 286, 640, 284); c.bezierCurveTo(780, 286, 900, 340, 1010, 432); c.fill();
+  c.strokeStyle = 'rgba(50,45,38,.25)'; c.lineWidth = 2;
+  [[430, 400, 520, 330], [760, 330, 860, 400], [690, 360, 720, 420]].forEach(([x0, y0, x1, y1]) => {
+    c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo((x0 + x1) / 2 + 20, (y0 + y1) / 2, x1, y1); c.stroke();
+  });
+  // rock-cut steps zig-zagging to the top
+  c.strokeStyle = 'rgba(245,238,222,.7)'; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(560, 430); c.lineTo(600, 400); c.lineTo(570, 370); c.lineTo(612, 338); c.lineTo(596, 306); c.stroke();
+  c.strokeStyle = 'rgba(80,70,60,.4)'; c.lineWidth = 1;
+  for (let k = 0; k < 18; k++) { const y = 428 - k * 7, x = 560 + Math.abs(((k * 7) % 60) - 30); c.beginPath(); c.moveTo(x - 4, y); c.lineTo(x + 4, y); c.stroke(); }
+  // the statue (kayotsarga pose: arms hanging free of the body)
+  const X = 640;
+  const stone = hGrad(c, X - 60, X + 60, ['#a39c8e', '#d6d0c2', '#f4efe3']);
+  c.fillStyle = stone;
+  c.beginPath();
+  c.moveTo(X - 46, 142); c.quadraticCurveTo(X - 44, 172, X - 26, 200);
+  c.lineTo(X - 28, 226); c.lineTo(X - 24, 300); c.lineTo(X - 2, 300); c.lineTo(X - 2, 232);
+  c.lineTo(X + 2, 232); c.lineTo(X + 2, 300); c.lineTo(X + 24, 300); c.lineTo(X + 28, 226);
+  c.lineTo(X + 26, 200); c.quadraticCurveTo(X + 44, 172, X + 46, 142);
+  c.quadraticCurveTo(X, 132, X - 46, 142); c.closePath(); c.fill();
+  [-1, 1].forEach(s => {
+    c.beginPath();
+    c.moveTo(X + s * 46, 140); c.quadraticCurveTo(X + s * 58, 150, X + s * 56, 182);
+    c.lineTo(X + s * 53, 264); c.lineTo(X + s * 43, 264); c.lineTo(X + s * 40, 190);
+    c.quadraticCurveTo(X + s * 38, 160, X + s * 36, 148); c.closePath(); c.fill();
+  });
+  c.fillStyle = 'rgba(70,64,54,.18)';
+  c.fillRect(X - 2, 232, 4, 68); c.fillRect(X - 30, 200, 60, 3);
+  c.fillStyle = hGrad(c, X - 9, X + 9, ['#b8b1a3', '#ece6d8']); c.fillRect(X - 8, 120, 16, 22);
+  c.fillStyle = hGrad(c, X - 16, X + 16, ['#b2ab9d', '#e2dccf', '#f6f1e6']);
+  c.beginPath(); c.ellipse(X, 110, 15, 18, 0, 0, Math.PI * 2); c.fill();
+  [-1, 1].forEach(s => { c.beginPath(); c.ellipse(X + s * 15, 117, 3.5, 11, 0, 0, Math.PI * 2); c.fill(); });
+  c.fillStyle = '#76716a';
+  for (let row = 0; row < 3; row++) {
+    const rr = 15 - row * 4.5, n = 9 - row * 3;
+    for (let k = 0; k <= n; k++) { const a = Math.PI + 0.25 + k / n * (Math.PI - 0.5); c.beginPath(); c.arc(X + rr * Math.cos(a), 104 + rr * Math.sin(a) * 1.05, 3, 0, Math.PI * 2); c.fill(); }
+  }
+  // madhavi creepers winding up legs and arms
+  c.strokeStyle = '#5f8a3e'; c.lineWidth = 2.2;
+  [[X - 14, 300, X - 22, 230], [X + 14, 300, X + 22, 230], [X - 48, 262, X - 50, 160], [X + 48, 262, X + 50, 160]].forEach(([x0, y0, x1, y1]) => {
+    c.beginPath(); c.moveTo(x0, y0);
+    for (let k = 1; k <= 6; k++) { const f = k / 6; c.lineTo(lerp(x0, x1, f) + (k % 2 ? 6 : -6), lerp(y0, y1, f)); }
+    c.stroke();
+  });
+  // hilltop enclosure with small gopuras and Jain flag bunting
+  c.fillStyle = vGrad(c, 284, 312, ['#e6dfcd', '#b7ae9b']); c.fillRect(530, 284, 220, 28);
+  c.fillStyle = 'rgba(70,60,50,.4)'; for (let x = 540; x < 744; x += 16) c.fillRect(x, 292, 6, 16);
+  [530, 750].forEach(x => {
+    for (let i = 0; i < 4; i++) {
+      const w1 = 44 - i * 8, y1 = 312 - i * 12;
+      c.fillStyle = hGrad(c, x - w1 / 2, x + w1 / 2, ['#a89f8e', '#e9e2d2']);
+      c.fillRect(x - w1 / 2, y1 - 12, w1, 12);
+    }
+    c.fillStyle = '#d9a83e'; c.fillRect(x - 1, 254, 2, 10);
+  });
+  const flagCols = ['#e23b3b', '#f2c230', '#ffffff', '#3d9a4a', '#3a6fd1'];
+  c.strokeStyle = 'rgba(60,50,40,.6)'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(530, 266); c.quadraticCurveTo(640, 286, 750, 266); c.stroke();
+  for (let k = 0; k < 20; k++) {
+    const f = (k + 0.5) / 20, x = lerp(530, 750, f), y = 266 + 20 * 2 * f * (1 - f);
+    c.fillStyle = flagCols[k % 5];
+    c.beginPath(); c.moveTo(x - 4, y); c.lineTo(x + 4, y); c.lineTo(x, y + 9); c.fill();
+  }
+  // foreground trees either side
+  [[300, 380, 50], [360, 396, 34], [900, 384, 48], [850, 400, 30]].forEach(([x, y, rr]) => {
+    c.fillStyle = '#4f4032'; c.fillRect(x - 3, y, 6, 432 - y);
+    const g = c.createRadialGradient(x + rr * 0.3, y - rr * 0.4, 4, x, y, rr);
+    g.addColorStop(0, '#6f9a52'); g.addColorStop(1, '#2e4a2a');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, rr, 0, Math.PI * 2); c.fill();
+  });
+}
+function gomatLive(c, A, t) {
+  [[0, 372, 380], [600, 346, 300]].forEach(([x, y, w], i) => {
+    const mx = ((x + t * (6 + i * 3)) % (A.w + w * 2)) - w;
+    c.fillStyle = 'rgba(255,255,255,.22)'; c.beginPath(); c.ellipse(mx, y, w, 12, 0, 0, Math.PI * 2); c.fill();
+  });
+  [[200, 120, 0.9], [820, 90, 1.1]].forEach(([x, y, s]) => {
+    const cx = ((x + t * 6) % (A.w + 300)) - 150;
+    const fade = clamp((Math.abs(cx - 640) - 90) / 120, 0, 1);   // thin out while passing the statue
+    if (fade > 0) cloud(c, cx, y, s, `rgba(255,255,255,${0.85 * fade})`, `rgba(230,226,220,${0.8 * fade})`);
+  });
+  birds(c, t, 3, 150, 'rgba(40,40,50,.7)');
+}
+
 function drawArena() {
   const F = fight, A = CONFIG.arena;
-  let g = ctx.createLinearGradient(0, 0, 0, A.h);
-  g.addColorStop(0, '#0e1226'); g.addColorStop(1, '#05060a');
-  ctx.fillStyle = g; ctx.fillRect(-20, -20, A.w + 40, A.h + 40);
+  let g;
+  drawBackdrop(ctx, A, F.clock);
   // spotlights
   [[300, '#3aa0ff'], [900, '#ff4d5e'], [600, '#ffffff']].forEach(([x, c]) => {
     const s = ctx.createRadialGradient(x, 0, 10, x, 0, 520);
     s.addColorStop(0, c + '22'); s.addColorStop(1, c + '00');
     ctx.fillStyle = s; ctx.fillRect(0, 0, A.w, A.h);
   });
+  const T = currentArena.theme;
   // crowd + camera flashes (WWE vibe)
   F.crowd.forEach(c => {
-    ctx.fillStyle = `rgba(120,135,180,${c.s})`;
+    ctx.fillStyle = `rgba(${T.crowd},${c.s})`;
     ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
     ctx.fillRect(c.x - c.r, c.y + c.r * 0.6, c.r * 2, 30);
   });
@@ -888,30 +1259,38 @@ function drawArena() {
     ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(c.x, c.y - 4, 3, 0, Math.PI * 2); ctx.fill();
   }
   // LED board
-  ctx.fillStyle = '#0a0d18'; ctx.fillRect(0, 432, A.w, 40);
-  ctx.fillStyle = 'rgba(255,210,63,.25)'; ctx.font = 'italic 900 20px "Segoe UI", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = T.board; ctx.fillRect(0, 432, A.w, 40);
+  ctx.fillStyle = T.ground; ctx.fillRect(0, 472, A.w, 30);
+  ctx.fillStyle = 'rgba(255,210,63,.3)'; ctx.font = 'italic 900 20px "Segoe UI", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   const off = (F.clock * 60) % 300;
   for (let x = -off; x < A.w; x += 300) ctx.fillText('ROBO OLYMPICS ★', x, 452);
   // pits
   [[A.wallW, F.floorL], [F.floorR, A.w - A.wallW]].forEach(([x0, x1]) => {
     const pg = ctx.createLinearGradient(0, A.floorY, 0, A.h);
-    pg.addColorStop(0, '#05060a'); pg.addColorStop(1, '#ff2a2a55');
+    pg.addColorStop(0, T.pit[0]); pg.addColorStop(1, T.pit[1]);
     ctx.fillStyle = pg; ctx.fillRect(x0, A.floorY - 10, x1 - x0, A.h);
-    ctx.fillStyle = 'rgba(255,80,80,.5)'; ctx.font = '900 14px "Segoe UI", sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('PIT', (x0 + x1) / 2, A.h - 30);
+    if (T.water) {   // animated ripples on water pits
+      ctx.fillStyle = 'rgba(255,255,255,.18)';
+      for (let k = 0; k < 4; k++) ctx.fillRect(x0 + ((F.clock * 25 + k * 37) % (x1 - x0 - 20)), A.floorY + 6 + k * 22, 20, 2);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.font = '900 13px "Segoe UI", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(T.pitLabel, (x0 + x1) / 2, A.h - 30);
   });
-  // floor
+  // floor with tile seams
   g = ctx.createLinearGradient(0, A.floorY, 0, A.h);
-  g.addColorStop(0, '#2c3350'); g.addColorStop(1, '#141826');
+  g.addColorStop(0, T.floor[0]); g.addColorStop(1, T.floor[1]);
   ctx.fillStyle = g; ctx.fillRect(F.floorL, A.floorY, F.floorR - F.floorL, A.h - A.floorY);
-  ctx.fillStyle = '#7f8fc4'; ctx.fillRect(F.floorL, A.floorY, F.floorR - F.floorL, 2);
+  ctx.fillStyle = 'rgba(0,0,0,.12)';
+  for (let x = F.floorL + 60; x < F.floorR; x += 60) ctx.fillRect(x, A.floorY, 2, A.h - A.floorY);
+  ctx.fillRect(F.floorL, A.floorY + 45, F.floorR - F.floorL, 2);
+  ctx.fillStyle = T.edge; ctx.fillRect(F.floorL, A.floorY, F.floorR - F.floorL, 3);
   [F.floorL, F.floorR - 24].forEach(x => {
     for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#111' : '#ffd23f'; ctx.fillRect(x + i * 6, A.floorY + 2, 6, 10); }
   });
   // walls
-  ctx.fillStyle = '#1a1e30';
+  ctx.fillStyle = T.wall[0];
   ctx.fillRect(0, 0, A.wallW, A.h); ctx.fillRect(A.w - A.wallW, 0, A.wallW, A.h);
-  ctx.fillStyle = '#262c45';
+  ctx.fillStyle = T.wall[1];
   for (let y = 0; y < A.h; y += 40) { ctx.fillRect(4, y, A.wallW - 8, 3); ctx.fillRect(A.w - A.wallW + 4, y, A.wallW - 8, 3); }
 }
 
@@ -1031,9 +1410,10 @@ function drawHUD() {
     ctx.fillStyle = hg; ctx.fillRect(i ? x + W - W * pct : x, y, W * pct, H);
     ctx.font = 'italic 900 18px "Segoe UI", sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = i ? 'right' : 'left';
     ctx.fillStyle = '#fff'; ctx.fillText(r.name.toUpperCase(), i ? x + W : x, y + H + 6);
-    ctx.font = '600 11px "Segoe UI", sans-serif'; ctx.fillStyle = '#9aa6c4';
+    ctx.font = '700 11px "Segoe UI", sans-serif';
     const info = `${CONFIG.weapons[r.build.weapon].name.toUpperCase()} · ${Math.ceil(r.hp)}/${r.maxHp} HP${r.mode ? ' · ' + r.mode : ''}${r.rage ? ' · RAGE' : ''}`;
-    ctx.fillText(info, i ? x + W : x, y + H + 28);
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(info, i ? x + W : x, y + H + 28);   // readable on bright skies
+    ctx.fillStyle = '#e4eaf7'; ctx.fillText(info, i ? x + W : x, y + H + 28);
   });
   // timer
   ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.beginPath(); ctx.arc(A.w / 2, 40, 32, 0, Math.PI * 2); ctx.fill();
@@ -1072,6 +1452,21 @@ function showResult() {
 // ============================================================
 // BOOT (+ #auto headless test mode: random matches, results logged to the page)
 // ============================================================
+function buildArenaPicker() {
+  const el = document.getElementById('arenaPick');
+  el.innerHTML = '<span class="lbl">Arena</span><div class="opts">' +
+    ARENAS.map((a, k) => `<button class="opt arena-opt" data-k="${k}"><b>${a.name}</b><small>${a.place}</small></button>`).join('') + '</div>';
+  el.addEventListener('click', e => {
+    const b = e.target.closest('.arena-opt'); if (!b) return;
+    currentArena = ARENAS[+b.dataset.k];
+    updateArenaPicker();
+  });
+  updateArenaPicker();
+}
+function updateArenaPicker() {
+  document.querySelectorAll('.arena-opt').forEach((b, k) => b.classList.toggle('sel', ARENAS[k] === currentArena));
+}
+
 document.getElementById('fightBtn').addEventListener('click', startFight);
 document.getElementById('rematchBtn').addEventListener('click', startFight);
 document.getElementById('backBtn').addEventListener('click', backToBuilder);
@@ -1086,6 +1481,10 @@ document.getElementById('randomMatchBtn').addEventListener('click', () => {
   startFight();
 });
 buildPanel(0); buildPanel(1); refreshPanel(0); refreshPanel(1);
+const arenaHash = location.hash.match(/arena=(\w+)/);   // e.g. index.html#arena=hampi&fight
+if (arenaHash) currentArena = ARENAS.find(a => a.key === arenaHash[1]) || currentArena;
+buildArenaPicker();
+if (/\bfight\b/.test(location.hash)) document.getElementById('randomMatchBtn').click();
 
 let autoCount = 0;
 function autolog(s) { document.getElementById('autolog').textContent += s + '\n'; }
